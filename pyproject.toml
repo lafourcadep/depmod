@@ -1,0 +1,33 @@
+[build-system]
+requires = [
+    "setuptools",
+    "wheel",
+    "pybind11"
+]
+
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"depmod" = "depmod"
+
+[project]
+name = "depmod"
+version = "0.1.0"
+requires-python = ">=3.8"
+
+authors = [
+    { name = "Eliott T. Dubois", email = "eliott.dubois@cea.fr" },
+    { name = "Paul Lafourcade" , email = "paul.lafourcade@cea.fr" },
+]
+
+dependencies = [
+    "numpy",
+    "scipy",
+    "pybind11"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff"
+]
