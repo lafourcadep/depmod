@@ -15,7 +15,7 @@ class get_pybind_include():
 
 depmod_cpp_module = Extension(
     "depmod._lib",
-    glob.glob("depmod/lib/*.cpp"),
+    glob.glob("depmod/srclib/*.cpp"),
     include_dirs=[
         "depmod/lib/",
         "external/eigen/",
