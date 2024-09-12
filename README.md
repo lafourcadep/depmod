@@ -1,1 +1,1 @@
-# DEformation Path for MOlecular Dynamics (DEPMOD)
+# DEformation Paths for MOlecular Dynamics (DEPMOD)

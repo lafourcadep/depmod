@@ -1,0 +1,81 @@
+clear
+
+
+boundary    p p p
+units       metal
+atom_style  atomic
+
+read_data   dir.input/Cu_fcc_5x5x5.lmp.gz
+
+pair_style eam/alloy
+pair_coeff * * dir.input/Cu_zhou.eam.alloy Cu
+
+neighbor        2.0 bin
+neigh_modify    every 1 delay 0 check yes
+
+variable timestep equal 0.005 # [ps]
+variable simtime  equal 200 # [ps]
+variable ndump    equal 100 
+
+variable runstep  equal ${simtime}/${timestep}
+
+variable it      equal step
+variable pstime  equal step*dt
+variable TK      equal temp
+variable Pbar    equal press
+
+variable lx      equal lx
+variable ly      equal ly
+variable lz      equal lz
+variable yz      equal yz
+variable xz      equal xz
+variable xy      equal xy
+variable vol     equal vol
+
+variable etot    equal etotal 
+variable epot    equal pe
+variable ekin    equal ke
+
+variable pxx     equal pxx
+variable pyy     equal pyy
+variable pzz     equal pzz
+variable pyz     equal pyz
+variable pxz     equal pxz
+variable pxy     equal pxy
+
+timestep ${timestep}
+
+thermo_style custom step v_pstime atoms etotal ke pe temp press
+thermo_modify norm no
+thermo 1000
+
+fix extra all print 100 "$(v_it:%.0f) &
+$(v_pstime:%.3f) &
+$(v_TK:%.3f) &
+$(v_Pbar:%.10f) &
+$(v_lx:%.10f) &
+$(v_ly:%.10f) &
+$(v_lz:%.10f) & 
+$(v_yz:%.10f) & 
+$(v_xz:%.10f) &
+$(v_xy:%.10f) &
+$(v_vol:%.10f) &
+$(v_etot:%.10f) &
+$(v_epot:%.10f) &
+$(v_ekin:%.10f) &
+$(v_pxx:%.10f) & 
+$(v_pyy:%.10f) &
+$(v_pzz:%.10f) &
+$(v_pyz:%.10f) &
+$(v_pxz:%.10f) &
+$(v_pxy:%.10f)" screen no file thermodynamic_state.csv
+
+include ./lmp_fix_deform.mod 
+
+
+# dump trajectory all custom 500 dir.dumps/traj.*.dump.gz type element x y z
+# dump_modify trajectory element Cu
+# dump_modify trajectory sort id
+
+fix 1 all nve
+run ${runstep}
