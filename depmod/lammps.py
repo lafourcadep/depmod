@@ -3,20 +3,25 @@ from __future__ import annotations
 import numpy as np
 
 import depmod
-
-from depmod.typing import ArrayLike, ndarray
 from depmod.config import Config
 from depmod.deformation import Deformation
-from depmod.units import convert, lammps_unit
 from depmod.maths import fit_n_order_polynomial_with_fixed_offset
+from depmod.typing import ArrayLike, ndarray
+from depmod.units import convert, lammps_unit
 
-from depmod._lib.lammps import (
-    _lib_lammps_generate_box_evolution_data_brute,
-)
+# from depmod._lib.lammps import (
+#     _lib_lammps_generate_box_evolution_data_brute,
+# )
+
 
 LAMMPS_TRIU_INDS = (np.array([0, 1, 2, 1, 0, 0]), np.array([0, 1, 2, 2, 2, 1]))
 LAMMPS_TRIU_INDS_FLAT = np.array([0, 4, 8, 5, 2, 1]) # lx, ly, lz, yz, xz, xy
 
+def generate_box_evolution_data():
+    pass
+
+def write_deformation_module():
+    print(depmod.__version__)
 
 def lammps_generate_box_evolution_data(
     H: ndarray,
@@ -153,10 +158,10 @@ def lammps_write_fix_deform_module(
 
         for i in range(poly_order):
             o = i + 1
-            l = f"c{label}{o}"
-            c = f"v_{l}"
+            w = f"c{label}{o}"
+            c = f"v_{w}"
 
-            str_acc.append(f"variable {l} equal {coeff[i]: .20f}")
+            str_acc.append(f"variable {w} equal {coeff[i]: .20f}")
 
             e1 = "" if o <= 1 else f"^{o}"
             e2 = "" if i <= 1 else f"^{i}"

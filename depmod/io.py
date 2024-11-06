@@ -1,13 +1,14 @@
 """IO Module.
 
-Helper module that provide various I/O functions. In particular functions to parse lammps file's
-header and extract the lattice vectors and, if possible, the number of atoms.
+Helper module that provide various I/O functions.
+
+In particular functions to parse lammps file's header and extract the lattice vectors.
 """
 from __future__ import annotations
 
-
 import gzip
 import re
+import shutil
 import tarfile
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -19,6 +20,39 @@ import numpy as np
 RE_COMPRESSED = re.compile(r"[.]gz")
 RE_TARFILE = re.compile(r"[.]tar")
 RE_TARGZ = re.compile(r"[.]tar|[.gz]")
+
+
+def rmtree(path: str | Path) -> None:
+    """Remove a file/directory."""
+    path = Path(path).absolute()
+    if path.is_file():
+        path.unlink()
+    elif path.is_dir():
+        shutil.rmtree(path)
+
+
+def mkdir(path: str | Path, overwrite: bool = False) -> None:
+    """Create a directory and its parent if does not exist."""
+    path = Path(path).absolute()
+    if path.is_dir() and overwrite:
+        rmtree(path)
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def mkparent(filepath: str | Path) -> None:
+    """Create the parent directory of a file."""
+    parent = Path(filepath).absolute().parent
+    if not parent.is_dir():
+        mkdir(parent)
+
+
+@contextmanager
+def mkopen(filepath: str | Path, mode: str, **kwargs) -> IO:
+    """Same as 'open()' but create the parent directory if it does not exists"""
+    filepath = Path(filepath).absolute()
+    mkparent(filepath)
+    with open(filepath, mode=mode, **kwargs) as fd:
+        yield fd
 
 
 @dataclass
@@ -86,14 +120,14 @@ def read_atom(
             f"\nSupported file format are: {AtomFormat.list_readers()}"
         ) from error
 
-    with openfile(filepath, tar=tar, gz=gz) as fd:
+    with open_atom_file(filepath, tar=tar, gz=gz) as fd:
         natom, cell = reader(fd, **kwargs)
 
     return SystemInfos(filepath, natom, cell)
 
 
 @contextmanager
-def openfile(filepath: str | Path, tar: bool | None = None, gz: bool | None = None) -> IO:
+def open_atom_file(filepath: str | Path, tar: bool | None = None, gz: bool | None = None) -> IO:
     """Context manager for opening file."""
     filepath = Path(filepath)
 
@@ -249,3 +283,8 @@ def read_lammps_data(fd) -> tuple[int, np.ndarray]:
     cell[1, 2] = infos["yz"]
 
     return (infos["nat"], cell)
+
+
+@AtomFormat.reader(["dump", "lmpdump", "lmp-dump", "lammps-dump"], "lammps dump")
+def read_lammps_dump(fd) -> tuple[int, np.ndarray]:
+    pass

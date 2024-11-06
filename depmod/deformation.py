@@ -68,5 +68,7 @@ class PureShear:
         return self.from_axis(eta, kappa)
 
 
-
-
+# def MixedDeformation(dlist: list[Deformation]) -> Deformation:
+#     if not all(isinstance(it, Deformation) for it in dlist):
+#         raise TypeError("Not a deformation object.")
+#     return _lib_MixedDeformation(dlist)

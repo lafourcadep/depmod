@@ -1,16 +1,16 @@
 """Module to manage units conversion.
 
-LAMMPS might use several internal units.
+Mainly because LAMMPS might use several internal unit systems.
 See: https://docs.lammps.org/units.html
 
 Might be overkill... but whatever.
 """
+#TODO: Might go for a simpler version ??
 from __future__ import annotations
 
 import warnings
 
 from collections import namedtuple
-from functools import singledispatch
 
 import numpy as np
 
@@ -291,8 +291,10 @@ _RQUANTITY = {v: k for k, v in _QUANTITY.items()}
 def create_unit_table(codata_version):
     ut = UnitTable()
 
+    # Length units
     m = ut.create_unit("m", Unit(1., LENGTH), "metre")
 
+    # Mass units
     kg = ut.create_unit("kg", Unit(1., MASS), "kilogram")
     g = ut.create_unit("g", 1.0e-03 * kg, "gram")
 
@@ -305,10 +307,11 @@ def create_unit_table(codata_version):
 
     return ut
 
+
 UT = create_unit_table(__codata_version__)
 
 
-def convert(unit1: str | Unit, unit2: str | Unit):
+def convert(unit1: str | Unit, unit2: str | Unit) -> float:
     unit1 = UT[unit1] if isinstance(unit1, str) else unit1
     unit2 = UT[unit2] if isinstance(unit2, str) else unit2
 
@@ -318,7 +321,7 @@ def convert(unit1: str | Unit, unit2: str | Unit):
     return float(unit1 / unit2)
 
 
-# ------- LAMMPS STUFF
+# ------- LAMMPS CONVERSIONT TABLES
 
 
 LAMMPS_UNIT_URL = "https://docs.lammps.org/units.html"

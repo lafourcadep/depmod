@@ -125,7 +125,7 @@ def rotation_matrix_from_vectors(v1: ndarray, v2: ndarray) -> ndarray:
     return Q
 
 
-def build_rotation_matrix_around_axis(axis: ndarray, angle: float) -> tuple[ndarray]:
+def build_rotation_matrix_around_axis(axis: ndarray, angle: float) -> ndarray:
     """Build a rotation matrix Q, that rotate around a given axis.
 
     Parameters
@@ -147,7 +147,7 @@ def build_rotation_matrix_around_axis(axis: ndarray, angle: float) -> tuple[ndar
 
 def align_to_lammps_convention(
     H: ndarray, zaxis: ndarray, tol: float = 1.0e-5
-) -> np.ndarray:
+) -> tuple[ndarray, ndarray]:
     """Align a lattice to respect the LAMMPS convention.
 
     For more details see: https://docs.lammps.org/Howto_triclinic.html
