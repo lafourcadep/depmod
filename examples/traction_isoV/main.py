@@ -1,27 +1,24 @@
-import time
+# import warnings
+# warnings.filterwarnings("ignore")
 
+from depmod.core import *
 from depmod.config import init_config
 from depmod.deformation import Traction
 from depmod.io import read_atom
-
-from depmod.lammps import (
-    lammps_generate_box_evolution_data,
-    lammps_write_fix_deform_module
-)
-
+from depmod.units import convert
 
 if __name__ == "__main__":
-    
+
     # define the deformation
-    # unixial compression in the x direction
+    # unixial traction in the x direction
     deform = Traction(isoV=True).from_axis([1, 0, 0])
 
     # define the simulation parameters
     config = init_config(
-        gammadot=1e9,
+        gammadot= 1e9,
         t_max=200e-12,
-        npts=250,
-        kpts=1000
+        npts=100,
+        kpts=1000,
     )
 
     # Read lattice from lammps file
@@ -33,12 +30,21 @@ if __name__ == "__main__":
         config,
         deform,
         method="brute",
-        filename="box_evolution_data.csv"
+        filename="dir.depmod/box_evolution_data.csv"
     )
 
     # Write lammps deformation module
-    lammps_write_fix_deform_module(
+    lammps_write_deformation_module(
         box_evolution_data,
-        filename="lmp_fix_deform.mod",
-        dumpfit="box_evolution_fit.csv"
+        mod_file="dir.depmod/lmp_fix_deform.mod",
+        fit_file="dir.depmod/box_evolution_fit.csv",
+        poly_file="dir.depmod/poly_coeffs.csv"
     )
+
+    # Write exastamp deformation module
+    # exastamp_write_deformation_module(
+    #     exastamp_generate_box_evolution_data(
+    #         config = config,
+    #         deform = deform
+    #     )
+    # )
