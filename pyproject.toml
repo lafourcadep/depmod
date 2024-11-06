@@ -16,8 +16,9 @@ version = "0.1.0"
 requires-python = ">=3.8"
 
 authors = [
-    { name = "Eliott T. Dubois", email = "eliott.dubois@cea.fr" },
-    { name = "Paul Lafourcade" , email = "paul.lafourcade@cea.fr" },
+    { name = "Eliott T. Dubois"     , email = "dubois.eliott@gmail.com" },
+    { name = "Paul Lafourcade"      , email = "paul.lafourcade@cea.fr" },
+    { name = "Jean-Bernard Maillet" , email = "jean-bernard.maillet@cea.fr" },
 ]
 
 dependencies = [
@@ -29,5 +30,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "ruff"
+    "ruff",
+    "pylint"
 ]
