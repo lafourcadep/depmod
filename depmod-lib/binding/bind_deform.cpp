@@ -27,9 +27,6 @@ public:
   };
 };
 
-
-
-
 void init_deformation(py::module_& m) {
   
   auto subm = m.def_submodule("deformation");
@@ -53,5 +50,4 @@ void init_deformation(py::module_& m) {
 
   py::class_<PureShear, Deformation>(subm, "_lib_PureShear")
     .def(py::init<const Matrix3d&>());
-
 };

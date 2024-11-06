@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+#include <functional>
+
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/eigen.h>
@@ -9,35 +12,50 @@
 
 namespace py = pybind11;
 
+typedef std::function<void(Configuration*, Deformation*, py::array_t<double>, py::array_t<double>, py::array_t<double>, py::array_t<double>)> lmp_function_t;
 
-void lammps_generate_box_evolution_data_brute(
-  Configuration*, 
-  Deformation*,
-  py::array_t<double>,
-  py::array_t<double>,
-  py::array_t<double>,
-  py::array_t<double>
-);
+const std::map<uint32_t, lmp_function_t>& lammps_methods();
 
+void _lammps_box_gen_brute_n(Configuration*, Deformation*, py::array_t<double>, py::array_t<double>, py::array_t<double>, py::array_t<double>);
+void _lammps_box_gen_brute_k(Configuration*, Deformation*, py::array_t<double>, py::array_t<double>, py::array_t<double>, py::array_t<double>);
 
-void lmp_box_gen_brute_npts(
-  Configuration*, 
-  Deformation*,
-  py::array_t<double>,
-  py::array_t<double>,
-  py::array_t<double>,
-  py::array_t<double>
-);
+// const std::map<uint32_t, lmp_function_t> test_lammps_methods = {
+//   { INTEGRATION_METHOD::BRUTE,                            &_lammps_box_gen_brute_n },
+//   { INTEGRATION_METHOD::BRUTE | INTEGRATION_METHOD::KPTS, &_lammps_box_gen_brute_k },
+// };
 
 
-void lmp_box_gen_brute_kpts(
-  Configuration*, 
-  Deformation*,
-  py::array_t<double>,
-  py::array_t<double>,
-  py::array_t<double>,
-  py::array_t<double>
-);
+
+
+
+// void lammps_generate_box_evolution_data_brute(
+//   Configuration*, 
+//   Deformation*,
+//   py::array_t<double>,
+//   py::array_t<double>,
+//   py::array_t<double>,
+//   py::array_t<double>
+// );
+
+
+// void lmp_box_gen_brute_npts(
+//   Configuration*, 
+//   Deformation*,
+//   py::array_t<double>,
+//   py::array_t<double>,
+//   py::array_t<double>,
+//   py::array_t<double>
+// );
+
+
+// void lmp_box_gen_brute_kpts(
+//   Configuration*, 
+//   Deformation*,
+//   py::array_t<double>,
+//   py::array_t<double>,
+//   py::array_t<double>,
+//   py::array_t<double>
+// );
 
 
 // inline void fill_array(const size_t index, const double dt, const double tfac, py::array_t<double>& out, const py::array_t<double>& G, const py::array_t<double>& F) {
