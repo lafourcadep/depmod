@@ -171,7 +171,7 @@ def lammps_write_deformation_module(
         "# --------------------------------",
         "change_box all triclinic",
         "variable t_ref_lmp equal $(step) # Time offset in lammps units",
-        f"variable t_ref_dpmd equal $({tfac:.5e} * dt * v_t_inst) # Time offset in depmod units",
+        f"variable t_ref_dpmd equal $({tfac:.5e} * dt * v_t_ref_lmp) # Time offset in depmod units",
         f"variable t_dpmd equal {tfac:.5e}*step*dt # Time in depmod units"
     ]
 
@@ -194,16 +194,16 @@ def lammps_write_deformation_module(
             cname = f"c{label}{order}"
             vname = f"v_{cname}"
 
-            str_acc.append(f"variable {cname} {coeff[i]: .20f}")
+            str_acc.append(f"variable {cname} equal {coeff[i]: .20f}")
 
             a = "" if order <= 1 else f"^{order}"
             b = "" if i <= 1 else f"^{i}"
             c = "" if i == 0 else "*v_t_dpmd" 
             d = "" if order <= 1 else f"{order}*"
 
-            change.append(f"{cname}*v_t_dpmd{a}")
-            shift.append(f"{cname}*v_t_ref_dpmd{a}")
-            rate.append(f"{d}{cname}{c}{b}")
+            change.append(f"{vname}*v_t_dpmd{a}")
+            shift.append(f"{vname}*v_t_ref_dpmd{a}")
+            rate.append(f"{d}{vname}{c}{b}")
 
         str_acc.append(f"variable shift_{label}  equal $("+" + ".join(shift)+")")
         str_acc.append(f"variable change_{label} equal \""+" + ".join(change)+f" - v_shift_{label}\"")

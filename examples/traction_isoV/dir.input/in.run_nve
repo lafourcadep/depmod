@@ -14,7 +14,7 @@ neighbor        2.0 bin
 neigh_modify    every 1 delay 0 check yes
 
 variable timestep equal 0.005 # [ps]
-variable simtime  equal 200 # [ps]
+variable simtime  equal 100 # [ps]
 variable ndump    equal 100 
 
 variable runstep  equal ${simtime}/${timestep}
@@ -70,8 +70,7 @@ $(v_pyz:%.10f) &
 $(v_pxz:%.10f) &
 $(v_pxy:%.10f)" screen no file thermodynamic_state.csv
 
-include ./lmp_fix_deform.mod 
-
+include ./dir.depmod/lmp_fix_deform.mod 
 
 # dump trajectory all custom 500 dir.dumps/traj.*.dump.gz type element x y z
 # dump_modify trajectory element Cu
