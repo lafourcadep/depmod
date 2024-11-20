@@ -1,5 +1,5 @@
-# import warnings
-# warnings.filterwarnings("ignore")
+import warnings
+warnings.filterwarnings("ignore")
 
 from depmod.core import *
 from depmod.config import init_config
@@ -15,10 +15,10 @@ if __name__ == "__main__":
 
     # define the simulation parameters
     config = init_config(
-        gammadot= 1e9,
+        gammadot= 1e10,
         t_max=200e-12,
-        npts=100,
-        kpts=1000,
+        npts=200,
+        kpts=5000,
     )
 
     # Read lattice from lammps file

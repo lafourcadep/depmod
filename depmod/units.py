@@ -250,16 +250,6 @@ class UnitTable:
             raise InvalidUnitSymbolError from err
 
 
-__codata_version__ = "2018"
-
-
-CODATA = {
-    "2018" : {
-
-    }
-}
-
-
 MASS = UnitDimension(M=1)
 LENGTH = DISTANCE = UnitDimension(L=1)
 TIME = UnitDimension(T=1)
@@ -273,6 +263,7 @@ FORCE = MASS * LENGTH / TIME ** 2
 ENERGY = FORCE * LENGTH
 PRESSURE = FORCE / SURFACE
 
+
 _QUANTITY = {
     "mass": MASS,
     "distance": LENGTH,
@@ -285,7 +276,18 @@ _QUANTITY = {
     "density": DENSITY
 }
 
+
 _RQUANTITY = {v: k for k, v in _QUANTITY.items()}
+
+
+__codata_version__ = "2018"
+
+
+CODATA = {
+    "2018" : {
+
+    }
+}
 
 
 def create_unit_table(codata_version):
@@ -299,7 +301,7 @@ def create_unit_table(codata_version):
     g = ut.create_unit("g", 1.0e-03 * kg, "gram")
 
     # Time units
-    s = ut.create_unit("s", Unit(1.0, TIME), "second")
+    s = ut.create_unit("s", Unit(1., TIME), "second")
     
     ut.create_unit("ns", 1.0e-09 * s, "nanosecond")
     ut.create_unit("ps", 1.0e-12 * s, "picosecond")
@@ -321,7 +323,7 @@ def convert(unit1: str | Unit, unit2: str | Unit) -> float:
     return float(unit1 / unit2)
 
 
-# ------- LAMMPS CONVERSIONT TABLES
+# ------- LAMMPS CONVERSION TABLES
 
 
 LAMMPS_UNIT_URL = "https://docs.lammps.org/units.html"
