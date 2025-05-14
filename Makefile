@@ -13,7 +13,7 @@ EIGEN = external/eigen
 PYBIND11 = $(shell python$(PY) -c "import pybind11; print(pybind11.get_include())")
 
 PROJECTDIR = $(realpath $(CURDIR))
-SOURCESDIR = $(PROJECTDIR)/src/lib
+SOURCESDIR = $(PROJECTDIR)/src/cpp
 
 INCLUDES = -I$(SOURCESDIR) $(PYTHON_INC) -I$(PYBIND11) -I$(EIGEN)
 
