@@ -2,73 +2,84 @@ from __future__ import annotations
 
 import numpy as np
 
-from depmod.maths import dirvec, unitvec, check_vector_orthogonality
-from depmod.typing import ArrayLike
+from ._lib import _Deformation, _DeformationPath
+from .maths import check_vector_orthogonality, dirvec, spherical_basis, trim_array, unitvec
 
-from depmod._lib.deformation import (
-    _lib_Deformation,
-    _lib_TractionCompression,
-    _lib_TractionCompressionIsoV,
-    _lib_PureShear
-)
 
-Deformation = _lib_Deformation
+class Deformation(_Deformation):
+    def __init__(self, S, cfac=1.0):
+        _Deformation.__init__(self, S, cfac)
 
-class TractionCompression:
-    def __init__(self, comp=False, isoV=False):
-        self.comp = comp
-        self.isoV = isoV
 
-    def from_axis(self, axis):
-        trac = unitvec(axis)
-        S = np.tensordot(trac, trac, axes=0).astype(float)
-        if self.isoV:
-            return _lib_TractionCompressionIsoV(S, self.comp)
-        else:
-            return _lib_TractionCompression(S, self.comp)
+class TractionCompression(_Deformation):
+    def __init__(self, S, comp: bool = False):
+        cfac = 1.0 if not comp else -1.0
+        _Deformation.__init__(self, S, cfac)
 
-    def from_angles(self, theta: float, phi: float, degree: bool = True):
+    @classmethod
+    def from_axis(cls, eta, comp: bool = False, isoV: bool = False):
+        eta = unitvec(eta)
+        S = np.tensordot(eta, eta, axes=0).astype(float)
+
+        if isoV:
+            theta = np.arccos(eta[2])  # arccos(z)
+            phi = np.arctan2(eta[1], eta[0])  # arctan2(y, x)
+            m, n, p = spherical_basis(theta, phi, chi=0.0)
+            assert np.allclose(m, eta)
+            S -= 0.5 * (np.tensordot(n, n, axes=0) + np.tensordot(p, p, axes=0))
+
+        return cls(trim_array(S, 1.0e-8), comp=comp)
+
+    @classmethod
+    def from_angles(cls, theta: float, phi: float, comp: bool = False, isoV: bool = False, degree: bool = False):
         if degree:
-            theta = np.deg2rad(theta)
-            phi = np.deg2rad(phi)
-        return self.from_axis(dirvec(theta, phi))
+            theta, phi = np.deg2rad([theta, phi])
+        return cls.from_axis(dirvec(theta, phi), comp=comp, isoV=isoV)
 
 
-class Traction(TractionCompression):
-    def __init__(self, isoV: bool = False):
-        TractionCompression.__init__(self, comp=False, isoV=isoV)
+class Traction:
+    @staticmethod
+    def from_axis(eta, isoV: bool = False):
+        return TractionCompression.from_axis(eta, False, isoV)
+
+    @staticmethod
+    def from_angles(theta: float, phi: float, isoV: bool = False, degree: bool = True):
+        return TractionCompression.from_angles(theta, phi, False, isoV, degree)
 
 
 class Compression(TractionCompression):
-    def __init__(self, isoV: bool = False):
-        TractionCompression.__init__(self, comp=True, isoV=isoV)
+    @staticmethod
+    def from_axis(eta, isoV: bool = False):
+        return TractionCompression.from_axis(eta, True, isoV)
+
+    @staticmethod
+    def from_angles(theta: float, phi: float, isoV: bool = False, degree: bool = True):
+        return TractionCompression.from_angles(theta, phi, True, isoV, degree)
 
 
 class PureShear:
-    def __init__(self, strict: bool = True):
-        self.strict = True
-
-    def from_axis(self, eta: ArrayLike, kappa: ArrayLike):
+    @staticmethod
+    def from_axis(eta, kappa, strict: bool = True, symmetric: bool = False):
         eta = unitvec(eta)
         kappa = unitvec(kappa)
-        
-        if self.strict and not check_vector_orthogonality(eta, kappa):
+
+        if strict and not check_vector_orthogonality(eta, kappa):
             raise ValueError(f"eta: {eta} and kappa: {kappa} are not orthogonal.")
 
         S = np.tensordot(eta, kappa, axes=0).astype(float)
-        return _lib_PureShear(S)
+        if symmetric:
+            S += np.tensordot(kappa, eta, axes=0).astype(float)
 
-    def from_angles(self, theta: float, phi: float, degree=True):
+        return Deformation(trim_array(S, 1.0e-8))
+
+    @classmethod
+    def from_angles(cls, theta: float, phi: float, chi: float = 0.0, symmetric: bool = False, degree: bool = True):
         if degree:
-            theta = np.deg2rad(theta)
-            phi = np.deg2rad(phi)
-        eta = dirvec(theta, phi)
-        kappa = dirvec(theta + np.pi / 2, phi)
-
-        return self.from_axis(eta, kappa)
+            theta, phi, chi = np.deg2rad([theta, phi, chi])
+        eta, kappa, _ = spherical_basis(theta, phi, chi)
+        return cls.from_axis(eta, kappa, symmetric=symmetric)
 
 
-# def MixedDeformation(dlist: list[Deformation]) -> Deformation:
-#     if not all(isinstance(it, Deformation) for it in dlist):
-#         raise TypeError("Not a deformation object.")
-#     return _lib_MixedDeformation(dlist)
+class DeformationPath(_DeformationPath):
+    def __init__(self, deformation, strain_rate, tmax, tmin: float = 0.0, npts: int = 100, kpts: int = 100):
+        _DeformationPath.__init__(self, deformation, strain_rate, tmin, tmax, npts, kpts)

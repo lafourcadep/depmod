@@ -5,11 +5,10 @@ See: https://docs.lammps.org/units.html
 
 Might be overkill... but whatever.
 """
-#TODO: Might go for a simpler version ??
+
 from __future__ import annotations
 
 import warnings
-
 from collections import namedtuple
 
 import numpy as np
@@ -28,41 +27,37 @@ class UnitDimension:
 
     def __init__(
         self,
-        T: int=0, # s: Time
-        L: int=0, # m: Length
-        M: int=0, # kg: Mass
-        A: int=0, # A: Eletric Current
-        K: int=0, # K: Temperature
-        N: int=0, # mol: Matter Quantity
-        J: int=0  # Cd: Light
+        T: int = 0,  # s: Time
+        L: int = 0,  # m: Length
+        M: int = 0,  # kg: Mass
+        A: int = 0,  # A: Eletric Current
+        K: int = 0,  # K: Temperature
+        N: int = 0,  # mol: Matter Quantity
+        J: int = 0,  # Cd: Light
     ) -> None:
-
         # represent the exponent associated to each s.i. unit
         self.dim = np.array([T, L, M, A, K, N, J], dtype=int)
 
     def copy(self):
         return self.__class__(*self.dim)
-    
+
     def __hash__(self):
         return hash(tuple(self.dim))
 
     def __str__(self):
         _str = []
         _tmp = []
-        for i, sym in zip(
-            [2, 1, 0, 4, 5, 3, 6],
-            ["kg", "m", "s", "K", "mol", "A", "Cd"]
-        ):
+        for i, sym in zip([2, 1, 0, 4, 5, 3, 6], ["kg", "m", "s", "K", "mol", "A", "Cd"]):
             dim = self.dim[i]
             if dim == 0:
                 continue
             elif dim == 1:
                 _str.append("%s")
                 _tmp.append(sym)
-            elif (dim < 0 or dim > 1):
+            elif dim < 0 or dim > 1:
                 _str.append("%s^%d")
                 _tmp += [sym, dim]
-        return (".".join(_str) % tuple(_tmp))
+        return ".".join(_str) % tuple(_tmp)
 
     def __repr__(self):
         return str(self)
@@ -83,7 +78,7 @@ class UnitDimension:
 
     def __rmul__(self, other):
         return self.__class__(*(other.dim + self.dim))
-    
+
     def __truediv__(self, other):
         return self.__class__(*(self.dim - other.dim))
 
@@ -101,11 +96,12 @@ def cast_other_as_unit(func):
         if not issubclass(type(value), Unit):
             value = Unit(value)
         return func(self, value)
+
     return wrapper
 
 
 class Unit:
-    def __init__(self, value: float = 0., dim: UnitDimension | None = None):
+    def __init__(self, value: float = 0.0, dim: UnitDimension | None = None):
         self.val = value
         self.dim = UnitDimension() if dim is None else dim
 
@@ -118,45 +114,30 @@ class Unit:
 
     @cast_other_as_unit
     def __add__(self, other):
-        return self.__class__(
-            self.val + other.val,
-            self.dim + other.dim
-        )
-    
+        return self.__class__(self.val + other.val, self.dim + other.dim)
+
     @cast_other_as_unit
     def __sub__(self, other):
-        return self.__class__(
-            self.val - other.val,
-            self.dim - other.dim
-        )
+        return self.__class__(self.val - other.val, self.dim - other.dim)
 
     @cast_other_as_unit
     def __mul__(self, other):
-        return self.__class__(
-            self.val * other.val,
-            self.dim * other.dim
-        )
-    
+        return self.__class__(self.val * other.val, self.dim * other.dim)
+
     @cast_other_as_unit
     def __rmul__(self, other):
         return other.__mul__(self)
-    
+
     @cast_other_as_unit
     def __truediv__(self, other):
-        return self.__class__(
-            self.val / other.val,
-            self.dim / other.dim
-        )
-    
+        return self.__class__(self.val / other.val, self.dim / other.dim)
+
     @cast_other_as_unit
     def __rtruediv__(self, other):
         return other.__truediv__(self)
-    
+
     def __pow__(self, other):
-        return self.__class__(
-            self.val ** other,
-            self.dim ** other
-        )
+        return self.__class__(self.val**other, self.dim**other)
 
     def __str__(self):
         return f"Unit({self.val}, [{self.dim}])"
@@ -166,7 +147,7 @@ class Unit:
 
     def __int__(self):
         return int(self.val)
-    
+
     def __float__(self):
         return self.val
 
@@ -212,7 +193,7 @@ class UnitTable:
         _symbols = []
         for symbol in symbols:
             if self.__units.get(symbol) is not None:
-                warnings.warn(f"{self.__class__.__name__}: \"{symbol}\" already registered. Skipped.")
+                warnings.warn(f'{self.__class__.__name__}: "{symbol}" already registered. Skipped.')
                 continue
             _symbols.append(symbol)
 
@@ -220,25 +201,12 @@ class UnitTable:
 
         return unit
 
-    def create_unit(self, symbols, unit, name, infos = None) -> Unit:
-        return self.__register(
-            self.__units,
-            symbols,
-            unit,
-            name,
-            infos
-        )
+    def create_unit(self, symbols, unit, name, infos=None) -> Unit:
+        return self.__register(self.__units, symbols, unit, name, infos)
 
-    def create_constant(self, symbols, unit, name, infos = None) -> Unit:
-        return self.__register(
-            self.__constants,
-            symbols,
-            unit,
-            name,
-            infos
-        )
+    def create_constant(self, symbols, unit, name, infos=None) -> Unit:
+        return self.__register(self.__constants, symbols, unit, name, infos)
 
-    
     @property
     def cte(self):
         return self.__constants
@@ -259,7 +227,7 @@ SURFACE = LENGTH * LENGTH
 VOLUME = SURFACE * LENGTH
 DENSITY = MASS / VOLUME
 VELOCITY = DISTANCE / TIME
-FORCE = MASS * LENGTH / TIME ** 2
+FORCE = MASS * LENGTH / TIME**2
 ENERGY = FORCE * LENGTH
 PRESSURE = FORCE / SURFACE
 
@@ -273,7 +241,7 @@ _QUANTITY = {
     "force": ENERGY,
     "temperature": TEMPERATURE,
     "pressure": PRESSURE,
-    "density": DENSITY
+    "density": DENSITY,
 }
 
 
@@ -283,26 +251,22 @@ _RQUANTITY = {v: k for k, v in _QUANTITY.items()}
 __codata_version__ = "2018"
 
 
-CODATA = {
-    "2018" : {
-
-    }
-}
+CODATA = {"2018": {}}
 
 
 def create_unit_table(codata_version):
     ut = UnitTable()
 
     # Length units
-    m = ut.create_unit("m", Unit(1., LENGTH), "metre")
+    m = ut.create_unit("m", Unit(1.0, LENGTH), "metre")
 
     # Mass units
-    kg = ut.create_unit("kg", Unit(1., MASS), "kilogram")
+    kg = ut.create_unit("kg", Unit(1.0, MASS), "kilogram")
     g = ut.create_unit("g", 1.0e-03 * kg, "gram")
 
     # Time units
-    s = ut.create_unit("s", Unit(1., TIME), "second")
-    
+    s = ut.create_unit("s", Unit(1.0, TIME), "second")
+
     ut.create_unit("ns", 1.0e-09 * s, "nanosecond")
     ut.create_unit("ps", 1.0e-12 * s, "picosecond")
     ut.create_unit("fs", 1.0e-15 * s, "femtosecond")
@@ -328,14 +292,8 @@ def convert(unit1: str | Unit, unit2: str | Unit) -> float:
 
 LAMMPS_UNIT_URL = "https://docs.lammps.org/units.html"
 
-LAMMPS_UNIT_SET = {
-    "metal": {
-        TIME: UT["ps"]
-    },
-    "real": {
-        TIME: UT["fs"]
-    }
-}
+LAMMPS_UNIT_SET = {"metal": {TIME: UT["ps"]}, "real": {TIME: UT["fs"]}}
+
 
 class InvalidLammpsUnitError(Exception):
     def __init__(self, unit_system: str) -> None:
