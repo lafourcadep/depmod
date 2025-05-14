@@ -1,120 +1,46 @@
 #pragma once
 
-#include "dtype.h"
+#include "eigen.h"
 
-
+// Class that represent a deformation
 class Deformation {
 public:
-  virtual ~Deformation() = default;
-  // Precompute K = dt * gdot * S
-  virtual Matrix3d compute_K(double, double) = 0;
-
-  virtual const Matrix3d get_S(void) { return m_S; };
+  Deformation(const Matrix3d& S) : m_S(S), m_cfac(1.0) {}
+  Deformation(const Matrix3d& S, double cfac) : m_S(S), m_cfac(cfac) {}
+  inline const Matrix3d S(void) { return m_S; }
+  inline double cfac(void) { return m_cfac; }
 
 protected:
-  Deformation(const Matrix3d& S);
   Matrix3d m_S;
+  double m_cfac;
 };
 
-
-class TractionCompression: public Deformation {
+// Class that represent a deformation path (i.e. a deformation + strain_rate)
+class DeformationPath {
 public:
-  TractionCompression(const Matrix3d& S, bool cflag);
-  TractionCompression(const Matrix3d& S);
-  Matrix3d compute_K(double, double);
+  DeformationPath(Deformation deformation, double strain_rate, double tmin, double tmax,
+                  size_t npts, size_t kpts)
+      : m_deformation(deformation), m_strain_rate(strain_rate), m_tmin(tmin), m_tmax(tmax),
+        m_npts(npts), m_kpts(kpts) {
 
-  inline bool cflag() { return m_cflag; }
-  inline bool isoV() { return false; }
+    m_dt = (m_tmax - m_tmin) / static_cast<double>(kpts * npts);
+  }
+
+  inline double strain_rate() const { return m_strain_rate; }
+  inline double tmin() const { return m_tmin; }
+  inline double tmax() const { return m_tmax; }
+  inline double imax() const { return npts() + 1; }
+  inline double dt() const { return m_dt; }
+
+  inline size_t npts() const { return m_npts; }
+  inline size_t kpts() const { return m_kpts; }
+
+  inline Matrix3d L() {
+    return (m_deformation.cfac() * m_strain_rate * m_deformation.S().array()).matrix();
+  }
 
 private:
-  bool m_cflag;
+  Deformation m_deformation;
+  double m_strain_rate, m_tmin, m_tmax, m_dt;
+  size_t m_npts, m_kpts;
 };
-
-
-class TractionCompressionIsoV: public Deformation {
-public:
-  TractionCompressionIsoV(const Matrix3d& S, bool cflag);
-  TractionCompressionIsoV(const Matrix3d& S);
-  Matrix3d compute_K(double, double);
-
-  inline bool cflag() { return m_cflag; }
-  inline bool isoV() { return true; }
-
-private:
-  bool m_cflag;
-};
-
-
-class PureShear: public Deformation {
-public:
-  PureShear(const Matrix3d& S);
-  Matrix3d compute_K(double, double);
-};
-
-
-// class Deformation {
-// public:
-//   
-//   virtual ~Deformation() = default;
-//   virtual const Matrix3d get_Fdot_inc(double, double, const Matrix3d&, const Matrix3d&) = 0;
-
-//   // const Matrix3d& S() { return m_S; };
-
-//   const Matrix3d S;
-
-// protected:
-//   Deformation(const Matrix3d& S): m_S(S) {};
-//   Matrix3d m_S;
-// };
-
-// class PureShear: public Deformation {
-// public:
-//   PureShear(const Matrix3d& S): Deformation(S) {};
-//   const Matrix3d get_Fdot_inc(double dt, double gdot, const Matrix3d& F, const Matrix3d& S) override {
-//     return (dt * gdot * (S * F).array()).matrix();
-//   };
-// };
-
-
-
-// class Deformation {
-// public:
-//   virtual ~Deformation() {};
-//   virtual int get_delta_Fdot(double, double, double) = 0;
-
-// protected:
-//   Eigen::Map<Mat33> m_S;
-// };
-
-// class PureShear: public Deformation {
-// public:
-
-//   PureShear(py::array_t<double> S) {
-//     auto S_ = S.unchecked<2>();
-//     m_S = Eigen::Map<const Mat33>(S_.data(0, 0), 3, 3);
-//   };
-
-//   int get_delta_Fdot(double, double, double);
-// };
-
-// class Traction: public Deformation {
-// public:
-//   int get_delta_Fdot(double, double, double);
-// };
-
-// class Compression: public Deformation {
-// public:
-//   int get_delta_Fdot(double, double, double);
-// };
-
-// class PyDeformation: public Deformation {
-// public:
-//   // Inherit the constructors
-//   using Deformation::Deformation;
-
-//   // Trampolines (need one for each virtual function)
-//   int get_dFdot() {
-//     PYBIND
-//   }
-
-// }
