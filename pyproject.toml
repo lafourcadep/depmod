@@ -8,11 +8,11 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.package-dir]
-"depmod" = "depmod"
+"depmod" = "src/depmod"
 
 [project]
 name = "depmod"
-version = "0.1.0"
+version = "1.0.0"
 requires-python = ">=3.8"
 
 authors = [

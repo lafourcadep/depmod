@@ -1,32 +1,36 @@
-import re
-import sys
 import glob
+
 import setuptools
 
 
-class get_pybind_include():
+class get_pybind_include:
     def __init__(self, user=False):
         self.user = user
 
     def __str__(self):
         import pybind11
+
         return pybind11.get_include(self.user)
 
 
 depmod_cpp_module = setuptools.Extension(
     "depmod._lib",
-    glob.glob("depmod-lib/src/*.cpp") + 
-    glob.glob("depmod-lib/binding/*.cpp"),
+    glob.glob("src/lib/*.cpp"),
     include_dirs=[
-        "depmod-lib/src/",
-        "depmod-lib/include/",
+        "src/lib/",
         "external/eigen/",
         get_pybind_include(),
         get_pybind_include(True),
     ],
     language="c++",
     extra_compile_args=[
-        "-std=c++17", "-O3", "-flto", "-fPIC", "-Wall", "-Wextra", "-Wattributes"
+        "-std=c++20",
+        "-O3",
+        "-flto",
+        "-fPIC",
+        "-Wall",
+        "-Wextra",
+        "-Wattributes",
     ],
     extra_link_args=[],
 )
