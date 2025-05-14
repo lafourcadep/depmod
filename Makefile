@@ -1,7 +1,7 @@
 SHELL = bash
 
 COMPILER = g++
-CXXFLAGS = -O3 -shared -std=c++17 -fPIC -flto -Wall -Wextra -Wattributes
+CXXFLAGS = -O3 -shared -std=c++20 -fPIC -flto -Wall -Wextra -Wattributes
 
 PROJECT=depmod
 
