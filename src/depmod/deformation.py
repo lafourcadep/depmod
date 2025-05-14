@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from ._lib import _Deformation, _DeformationPath
-from .maths import check_vector_orthogonality, dirvec, spherical_basis, trim_array, unitvec
+from depmod._lib import _Deformation, _DeformationPath
+from depmod.maths import check_vector_orthogonality, dirvec, spherical_basis, trim_array, unitvec
 
 
 class Deformation(_Deformation):

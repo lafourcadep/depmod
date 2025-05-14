@@ -4,6 +4,7 @@ import shutil
 from contextlib import contextmanager
 from pathlib import Path
 
+
 def rmtree(path: str | Path) -> None:
     """Remove a file/directory."""
     path = Path(path).absolute()
@@ -35,5 +36,6 @@ def mkopen(filepath: str | Path, mode: str, **kwargs):
     mkparent(filepath)
     with open(filepath, mode=mode, **kwargs) as fd:
         yield fd
+
 
 __all__ = ["rmtree", "mkdir", "mkparent", "mkopen"]

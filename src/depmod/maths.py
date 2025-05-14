@@ -78,15 +78,12 @@ def dirvec(theta: float, phi: float) -> ndarray:
     """
     return spherical_basis(theta, phi, chi=0.0)[0]
 
+
 def fit_n_order_polynomial_with_fixed_offset(
-        x: ndarray,
-        y: ndarray,
-        n: int = 3,
-        offset: float = 0.,
-        include_zero: bool = False
+    x: ndarray, y: ndarray, n: int = 3, offset: float = 0.0, include_zero: bool = False
 ) -> ndarray:
     """Fit coefficients of arbitrary N-order polynomial with fixing the offset.
-    
+
     Parameters
     ----------
     x, y: ArrayLike
@@ -97,11 +94,12 @@ def fit_n_order_polynomial_with_fixed_offset(
     np.ndarray
         The normalized vector
     """
+
     def _cost_function(coeffs, x, y):
         return y - np.polynomial.Polynomial((offset, *coeffs))(x)
 
-    c0 = np.polyfit(x, y, deg=n)[:n][::-1] # coefficient are returned highest order first...
+    c0 = np.polyfit(x, y, deg=n)[:n][::-1]  # coefficient are returned highest order first...
     result = scipy.optimize.least_squares(_cost_function, c0, args=(x, y))
     if include_zero:
-        return np.array((0., *result.x), dtype=float)
+        return np.array((0.0, *result.x), dtype=float)
     return np.array(result.x, dtype=float)

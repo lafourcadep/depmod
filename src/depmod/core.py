@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from ._lib import exastamp_generate_box_data, lammps_generate_box_data
-from .deformation import DeformationPath
-from .maths import fit_n_order_polynomial_with_fixed_offset
-from .units import convert, lammps_unit
-from .utils import mkopen, mkparent
+from depmod._lib import exastamp_generate_box_data, lammps_generate_box_data
+from depmod.deformation import DeformationPath
+from depmod.maths import fit_n_order_polynomial_with_fixed_offset
+from depmod.units import convert, lammps_unit
+from depmod.utils import mkopen, mkparent
 
 ArrayLike = np._typing.ArrayLike
 ndarray = np.ndarray
@@ -29,10 +29,7 @@ class lammps:
     TRIU_INDS_FLAT = np.array([0, 4, 8, 5, 2, 1])  # lx, ly, lz, yz, xz, xy
 
     def generate_box_evolution_data(
-        lattice: ArrayLike,
-        deformation: DeformationPath,
-        zaxis: ArrayLike | None = None,
-        filename: str | None = None,
+        lattice: ArrayLike, deformation: DeformationPath, zaxis: ArrayLike | None = None, filename: str | None = None
     ):
         lattice = np.array(lattice, dtype=np.float64)
         assert np.allclose(lattice, np.triu(lattice))
@@ -78,7 +75,7 @@ class lammps:
         }
 
         # tfac = convert(lammps_unit("time", usys=units), DEPMOD_TIME_UNIT)
-        tfac = 1 # coefficients are fitted in lammps units
+        tfac = 1  # coefficients are fitted in lammps units
         str_acc = [
             "# --------------------------------",
             "# LAMMPS DEFORMATION MODULE",
@@ -87,7 +84,7 @@ class lammps:
             "change_box all triclinic",
             "variable t_ref_lmp equal $(step) # Time offset in lammps units",
             f"variable t_ref_dpmd equal $({tfac:.5e} * dt * v_t_ref_lmp) # Time offset in depmod units",
-            f"variable t_dpmd equal {tfac:.5e}*step*dt # Time in depmod units"
+            f"variable t_dpmd equal {tfac:.5e}*step*dt # Time in depmod units",
         ]
 
         fix_deform_str = f"fix deform all deform {fix_deform_step:d} "
@@ -113,16 +110,16 @@ class lammps:
 
                 a = "" if order <= 1 else f"^{order}"
                 b = "" if i <= 1 else f"^{i}"
-                c = "" if i == 0 else "*v_t_dpmd" 
+                c = "" if i == 0 else "*v_t_dpmd"
                 d = "" if order <= 1 else f"{order}*"
 
                 change.append(f"{vname}*v_t_dpmd{a}")
                 shift.append(f"{vname}*v_t_ref_dpmd{a}")
                 rate.append(f"{d}{vname}{c}{b}")
 
-            str_acc.append(f"variable shift_{label}  equal $("+" + ".join(shift)+")")
-            str_acc.append(f"variable change_{label} equal \""+" + ".join(change)+f" - v_shift_{label}\"")
-            str_acc.append(f"variable rate_{label}   equal \""+" + ".join(rate)+"\"")
+            str_acc.append(f"variable shift_{label}  equal $(" + " + ".join(shift) + ")")
+            str_acc.append(f'variable change_{label} equal "' + " + ".join(change) + f' - v_shift_{label}"')
+            str_acc.append(f'variable rate_{label}   equal "' + " + ".join(rate) + '"')
 
         str_acc.append("\n# fix deform")
         str_acc.append(fix_deform_str + "remap x flip no")
@@ -182,7 +179,7 @@ class exastamp:
         indent: int = 2,
         time_fmt: str = "% 5.3f",
         xform_fmt: str = "%20.10e",
-        units: str = "ps"
+        units: str = "ps",
     ) -> None:
         """Write the EXASTAMP 'deform.cfg' module of the given time evolution of F.
 
@@ -197,7 +194,7 @@ class exastamp:
 
         xindent = " " * int(indent)
         time_serie = data[:, 1] * convert(DEPMOD_TIME_UNIT, units)
-        xform_serie = data[:, 20:29].flatten(order="C") # only care about F(t)
+        xform_serie = data[:, 20:29].flatten(order="C")  # only care about F(t)
 
         n = len(time_serie)
 
@@ -212,7 +209,7 @@ class exastamp:
         str_acc = [
             "xform_time_iterpolate_byparts:",
             f"{xindent}time_serie: [ {time_str} ]",
-            (xform_str % tuple([xform_line] * n)) % tuple(xform_serie)
+            (xform_str % tuple([xform_line] * n)) % tuple(xform_serie),
         ]
 
         with mkopen(mod_file, "w") as f:
