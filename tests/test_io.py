@@ -36,26 +36,18 @@ class Test_AtomReader_ReadAtom_LammpsData:
         for ij in [(1, 0), (2, 0), (2, 1)]:
             assert (lattice[ij] - 0.0) <= 1e-8
 
-    def test_ortho_read(self, atomreader_sample_dir):
+    def test_read(self, atomreader_sample_dir):
         self.assert_orthorombic_file(atomreader_sample_dir / "Cu_fcc_2x3x4.lmp")
+        self.assert_triclinic_file(atomreader_sample_dir / "Cu_fcc_2x3x4_triclinic.lmp")
     
-    # def test_ortho_read_tar(self, atomreader_sample_dir):
-    #     self.assert_orthorombic_file(atomreader_sample_dir / "Cu_fcc_2x3x4.lmp.tar")
-    # 
-    # def test_ortho_read_gz(self, atomreader_sample_dir):
-    #     self.assert_orthorombic_file(atomreader_sample_dir / "Cu_fcc_2x3x4.lmp.gz")
-    # 
-    # def test_ortho_read_tar_gz(self, atomreader_sample_dir):
-    #     self.assert_orthorombic_file(atomreader_sample_dir / "Cu_fcc_2x3x4.lmp.tar.gz")
+    def test_ortho_read_gzip(self, atomreader_sample_dir):
+        self.assert_orthorombic_file(atomreader_sample_dir / "Cu_fcc_2x3x4.lmp.gz")
+        self.assert_triclinic_file(atomreader_sample_dir / "Cu_fcc_2x3x4_triclinic.lmp.gz")
+    
+    def test_ortho_read_bzip2(self, atomreader_sample_dir):
+        self.assert_orthorombic_file(atomreader_sample_dir / "Cu_fcc_2x3x4.lmp.bz2")
+        self.assert_triclinic_file(atomreader_sample_dir / "Cu_fcc_2x3x4_triclinic.lmp.bz2")
 
-    # def test_triclinic_read(self, atomreader_sample_dir):
-    #     self.assert_triclinic_file(atomreader_sample_dir / "Cu_fcc_2x3x4_triclinic.lmp")
-
-    # def test_triclinic_read_tar(self, atomreader_sample_dir):
-    #     self.assert_triclinic_file(atomreader_sample_dir / "Cu_fcc_2x3x4_triclinic.lmp.tar")
-    # 
-    # def test_triclinic_read_gz(self, atomreader_sample_dir):
-    #     self.assert_triclinic_file(atomreader_sample_dir / "Cu_fcc_2x3x4_triclinic.lmp.gz")
-    # 
-    # def test_triclinic_read_tar_gz(self, atomreader_sample_dir):
-    #     self.assert_triclinic_file(atomreader_sample_dir / "Cu_fcc_2x3x4_triclinic.lmp.tar.gz")
+    def test_ortho_read_lzma(self, atomreader_sample_dir):
+        self.assert_orthorombic_file(atomreader_sample_dir / "Cu_fcc_2x3x4.lmp.xz")
+        self.assert_triclinic_file(atomreader_sample_dir / "Cu_fcc_2x3x4_triclinic.lmp.xz")

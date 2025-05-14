@@ -47,8 +47,8 @@ for tilt in 0 1; do
     atomsk_cmd="--create ${sgrp} ${a} ${s} -duplicate ${rx} ${ry} ${rz} ${skdef} -overwrite ${outname}"
 
     atomsk ${atomsk_cmd}
+    gzip -fvk ${outname}
+    bzip2 -fvk ${outname}
+    xz -fvk ${outname}
 
-    tar  -cvf  ${outname}.tar    ${outname}
-    tar  -zcvf ${outname}.tar.gz ${outname}
-    gzip -fvk  ${outname}
 done

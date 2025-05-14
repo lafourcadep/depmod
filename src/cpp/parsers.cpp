@@ -1,5 +1,6 @@
-#include <filesystem>
 #include "parsers.h"
+#include <cassert>
+#include <filesystem>
 
 namespace io {
 
@@ -38,6 +39,323 @@ size_t ASCIIFileHandler::read(char* data, size_t size) {
   return result;
 }
 
+#ifdef USE_ZLIB
+
+GzipFileHandler::GzipFileHandler(const std::string& path, FileMode mode) : TextFileHandler(path) {
+  const char* openmode;
+  switch (mode) {
+  case FileMode::READ:
+    openmode = "rb";
+    break;
+  case FileMode::APPEND:
+  case FileMode::WRITE:
+    PANIC("FileMode::WRITE is not supported");
+    break;
+  }
+
+  m_fptr = gzopen64(m_path.c_str(), openmode);
+  if (m_fptr == nullptr) {
+    PANIC(strf("Unable to open file: ", m_path.c_str()));
+  }
+}
+
+GzipFileHandler::~GzipFileHandler() {
+  if (m_fptr != nullptr)
+    gzclose(m_fptr);
+}
+
+void GzipFileHandler::clear() noexcept { gzclearerr(m_fptr); }
+
+void GzipFileHandler::seek(uint64_t cursor) {
+  static_assert(sizeof(uint64_t) == sizeof(z_off64_t));
+
+  auto status = gzseek64(m_fptr, static_cast<z_off64_t>(cursor), SEEK_SET);
+  if (status == -1) {
+    const char* message = gz_error();
+    PANIC(strf("Error while decompressing gzip file : %s", message));
+  }
+}
+
+size_t GzipFileHandler::read(char* buffer, size_t size) {
+  int read = gzread(m_fptr, buffer, safe_cast(size));
+  const char* error = gz_error();
+  if (read == -1 || error != nullptr) {
+    PANIC(strf("Error while reading gzip file : %s", error));
+  }
+  return static_cast<size_t>(read);
+}
+
+const char* GzipFileHandler::gz_error(void) const {
+  int status = Z_OK;
+  const char* message = gzerror(m_fptr, &status);
+  return status == Z_OK ? nullptr : message;
+}
+
+unsigned GzipFileHandler::safe_cast(size_t value) {
+  constexpr size_t max = std::numeric_limits<unsigned>::max();
+  if (value > max) {
+    PANIC(strf("%d is too big for unsigned in call to zlib function", value));
+  }
+  return static_cast<unsigned>(value);
+}
+
+#endif
+
+#ifdef USE_LZMA
+
+size_t XzFileHandler::safe_cast(size_t size) {
+  constexpr size_t max = std::numeric_limits<size_t>::max();
+  if (size > max) {
+    PANIC(strf("%ld is too big for unsigned in call to zlib function", size));
+  }
+  return static_cast<size_t>(size);
+}
+
+void XzFileHandler::check_lzma_ret(lzma_ret ret) {
+  int retnum = static_cast<int>(ret);
+
+  switch (ret) {
+  case LZMA_OK:
+  case LZMA_STREAM_END:
+    return;
+  case LZMA_GET_CHECK:
+  case LZMA_NO_CHECK:
+    PANIC(strf("lzma: no integrity check.", retnum));
+  case LZMA_MEM_ERROR:
+  case LZMA_MEMLIMIT_ERROR:
+    PANIC(strf("lzma: failed to allocated memory (err: %d)", retnum));
+  case LZMA_FORMAT_ERROR:
+    PANIC(strf("lzma: invalid .xz format (err: %d)", retnum));
+  case LZMA_OPTIONS_ERROR:
+    PANIC(strf("lzma: invalid options (err: %d)", retnum));
+  case LZMA_DATA_ERROR:
+  case LZMA_BUF_ERROR:
+    PANIC(strf("lzma: file is corrupted or truncated (err: %d)", retnum));
+  case LZMA_UNSUPPORTED_CHECK:
+    PANIC(strf("lzma: file intergrity check not supported (err: %d)", retnum));
+  case LZMA_PROG_ERROR:
+    PANIC(strf("lzma: this is bug (err: %d)", retnum));
+  }
+}
+
+void XzFileHandler::start_lzma_decoder_stream(lzma_stream* stream) {
+  constexpr uint64_t memory_limit = std::numeric_limits<uint64_t>::max();
+  check_lzma_ret(lzma_stream_decoder(stream, memory_limit, LZMA_TELL_UNSUPPORTED_CHECK | LZMA_CONCATENATED));
+}
+
+XzFileHandler::XzFileHandler(const std::string& path, FileMode mode)
+    : TextFileHandler(path), m_xz_buffer(LZMA_INTERNAL_BUF_SIZE) {
+  const char* openmode;
+  switch (mode) {
+
+  case FileMode::READ:
+    openmode = "rb";
+    start_lzma_decoder_stream(&m_xz_stream);
+    break;
+
+  case FileMode::APPEND:
+  case FileMode::WRITE:
+    PANIC("Only reading is suported.");
+    break;
+  }
+
+  m_fptr = std::fopen(m_path.c_str(), openmode);
+  if (m_fptr == nullptr) {
+    lzma_end(&m_xz_stream);
+    PANIC(strf("Unable to open file: ", m_path.c_str()));
+  }
+}
+
+XzFileHandler::~XzFileHandler() {
+  lzma_end(&m_xz_stream);
+  if (m_fptr != nullptr)
+    std::fclose(m_fptr);
+}
+
+void XzFileHandler::clear() noexcept { std::clearerr(m_fptr); }
+
+void XzFileHandler::seek(uint64_t cursor) {
+  // lzma is a stream based compression format, so random access to file is not supported.
+  // inefficient implementation: re-decompressing the file from the begining
+  // not really an issue if we read from the begining of the file.
+
+  lzma_end(&m_xz_stream);
+  m_xz_stream = LZMA_STREAM_INIT;
+  start_lzma_decoder_stream(&m_xz_stream);
+
+  // set position to 0
+  std::fseek(m_fptr, 0, SEEK_SET);
+  constexpr size_t bufsize = LZMA_STREAM_BUF_SIZE;
+  char buffer[bufsize];
+
+  while (cursor > bufsize) {
+    size_t read_size = this->read(buffer, bufsize);
+    assert(read_size == bufsize);
+    cursor -= read_size;
+  }
+
+  [[maybe_unused]] size_t read_size = this->read(buffer, static_cast<size_t>(cursor));
+  assert(read_size == cursor);
+}
+
+size_t XzFileHandler::read(char* buffer, size_t size) {
+
+  m_xz_stream.next_out = reinterpret_cast<uint8_t*>(buffer);
+  m_xz_stream.avail_out = size;
+
+  while (m_xz_stream.avail_out > 0) {
+    if (m_xz_stream.avail_in == 0) {
+
+      m_xz_stream.next_in = m_xz_buffer.data();
+      m_xz_stream.avail_in = std::fread(m_xz_buffer.data(), 1, m_xz_buffer.size(), m_fptr);
+
+      if (std::ferror(m_fptr)) {
+        PANIC("Something went wrong while reading xz file");
+      }
+    }
+
+    lzma_action action = std::feof(m_fptr) && m_xz_stream.avail_in == 0 ? LZMA_FINISH : LZMA_RUN;
+    lzma_ret ret = lzma_code(&m_xz_stream, action);
+
+    if (ret == LZMA_STREAM_END) {
+      break;
+    }
+
+    check_lzma_ret(ret);
+  }
+
+  return size - m_xz_stream.avail_out;
+}
+
+#endif
+
+#ifdef USE_BZIP2
+
+unsigned Bzip2FileHandler::safe_cast(uint64_t size) {
+  constexpr size_t max = std::numeric_limits<size_t>::max();
+  if (size > max) {
+    PANIC(strf("%ld is too big for unsigned in call to bzlib function", size));
+  }
+  return static_cast<unsigned>(size);
+}
+
+void Bzip2FileHandler::check_bz2_retcode(int code) {
+
+  switch (code) {
+  case BZ_OK:
+  case BZ_RUN_OK:
+  case BZ_FLUSH_OK:
+  case BZ_FINISH_OK:
+  case BZ_STREAM_END:
+    return;
+  case BZ_SEQUENCE_ERROR:
+  case BZ_PARAM_ERROR:
+    PANIC(strf("bzip2: bad call to bzlib (err: %d)", code));
+  case BZ_MEM_ERROR:
+    PANIC(strf("bzip2: memory allocation failed (err: %d)", code));
+  case BZ_DATA_ERROR:
+    PANIC(strf("bzip2: corrupted file (err: %d)", code));
+  case BZ_DATA_ERROR_MAGIC:
+    PANIC(strf("bzip2: this file do not seems to be a bz2 file (err: %d)", code));
+  // These errors should not occur when using the stream API
+  case BZ_CONFIG_ERROR:
+    PANIC(strf("bzip2: mis-compiled bzlib (err: %d)", code));
+  case BZ_IO_ERROR:
+  case BZ_UNEXPECTED_EOF:
+  case BZ_OUTBUFF_FULL:
+    PANIC(strf("bzip2: unexpected error from bzlib (err: %d)", code));
+  default:
+    PANIC(strf("bzip2: ???? (err: %d)", code));
+  }
+}
+
+Bzip2FileHandler::Bzip2FileHandler(const std::string& path, FileMode mode)
+    : TextFileHandler(path), m_bz2_buffer(BZ2_INTERNAL_BUF_SIZE) {
+
+  const char* openmode = nullptr;
+  switch (mode) {
+  case FileMode::READ:
+    openmode = "rb";
+    m_end_bz2_stream = BZ2_bzDecompressEnd;
+    std::memset(&m_bz2_stream, 0, sizeof(bz_stream));
+    check_bz2_retcode(BZ2_bzDecompressInit(&m_bz2_stream, 0, 0));
+    break;
+
+  case FileMode::APPEND:
+  case FileMode::WRITE:
+    PANIC("Only reading is suported with bz2 compression format");
+    break;
+  }
+
+  m_fptr = std::fopen(m_path.c_str(), openmode);
+  if (m_fptr == nullptr) {
+    m_end_bz2_stream(&m_bz2_stream);
+    PANIC(strf("Unable to open file: ", m_path.c_str()));
+  }
+}
+
+Bzip2FileHandler::~Bzip2FileHandler() {
+  m_end_bz2_stream(&m_bz2_stream);
+  if (m_fptr != nullptr)
+    std::fclose(m_fptr);
+}
+
+
+void Bzip2FileHandler::clear() noexcept { std::clearerr(m_fptr); }
+
+void Bzip2FileHandler::seek(uint64_t cursor) {
+  // bzip2 is a stream based compression format, so random access to file is not supported.
+  // inefficient implementation: re-decompressing the file from the begining
+  // not really an issue if we read from the begining of the file.
+
+  m_end_bz2_stream(&m_bz2_stream);
+  std::memset(&m_bz2_stream, 0, sizeof(bz_stream));
+  check_bz2_retcode(BZ2_bzDecompressInit(&m_bz2_stream, 0, 0));
+
+  // set position to 0
+  std::fseek(m_fptr, 0, SEEK_SET);
+  constexpr size_t bufsize = BZ2_STREAM_BUF_SIZE;
+  char buffer[bufsize];
+
+  while (cursor > bufsize) {
+    size_t read_size = read(buffer, bufsize);
+    assert(read_size == bufsize);
+    cursor -= read_size;
+  }
+
+  [[maybe_unused]] size_t read_size = read(buffer, static_cast<size_t>(cursor));
+  assert(read_size == cursor);
+}
+
+size_t Bzip2FileHandler::read(char* buffer, size_t size) {
+
+  m_bz2_stream.next_out = buffer;
+  m_bz2_stream.avail_out = safe_cast(size);
+
+  while (m_bz2_stream.avail_out > 0) {
+    if (m_bz2_stream.avail_in == 0) {
+
+      m_bz2_stream.next_in = m_bz2_buffer.data();
+      m_bz2_stream.avail_in = safe_cast(std::fread(m_bz2_buffer.data(), 1, m_bz2_buffer.size(), m_fptr));
+
+      if (std::ferror(m_fptr)) {
+        PANIC("Something went wrong while reading xz file");
+      }
+    }
+
+    int retcode = BZ2_bzDecompress(&m_bz2_stream);
+
+    if (retcode == BZ_STREAM_END) {
+      break;
+    }
+    // check for error
+    check_bz2_retcode(retcode);
+  }
+
+  return size - m_bz2_stream.avail_out;
+}
+
+#endif
 
 /* ------------------------------------------------------------------------- */
 
@@ -352,7 +670,7 @@ bool LAMMPSDataParser::parse_header(Context& ctx) {
   return true;
 }
 
-bool LAMMPSDataParser::parse_atoms(Context& ctx) {
+bool LAMMPSDataParser::parse_atoms(Context&) {
   m_current_section = Section::IGNORED;
   return true;
 }
@@ -438,7 +756,7 @@ bool read_field_tilt(const TokenSet& tokens, Context& ctx) {
   return ok;
 }
 
-bool read_field_section(const TokenSet& tokens, Context& ctx) { 
+bool read_field_section(const TokenSet& tokens, Context&) { 
   return token_set_match_any(tokens, tok_sections);
 }
 
@@ -485,7 +803,7 @@ const FileInfos get_file_infos(const std::string& filepath, std::string user_for
   RegisteredFormat format = parser_factory().from_alias(user_format);
 
   if ((!format.is_valid) && (!guessed_infos.format.is_valid)) {
-    PANIC("AAAAAAAAA");
+    PANIC("Could not guess file format.");
   }
 
   FileInfos infos{.compression = user_compression.empty()
