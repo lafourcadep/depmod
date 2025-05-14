@@ -10,9 +10,7 @@ from depmod.units import (
 )
 
 def test_units_access():
-
-    m = u["m"]
-
+    u["m"]
     # Access with unregistered symbols
     with pytest.raises(InvalidUnitSymbolError):
         u["O"]
