@@ -38,7 +38,10 @@ if __name__ == "__main__":
             lattice=read_lattice("./dir.input/Cu_fcc_5x5x5.lmp.gz"),
             # Create a deformation path: Uni-axial isochoric traction
             deformation=DeformationPath(
-                Traction.from_axis([1, -1, 2], isoV=True), strain_rate=1e10, tmax=200e-12, npts=200
+                Traction.from_axis([1, -1, 2], isoV=True),
+                strain_rate=1e10,
+                tmax=200e-12,
+                npts=200
             ),
             filename="dir.depmod/box_evolution_data.csv",
         ),
@@ -48,7 +51,7 @@ if __name__ == "__main__":
         poly_file="dir.depmod/poly_coeffs.csv",
     )
 ```
-To the deformation path inside LAMMPS just add `include dir.depmod/lmp_fix_deform.mod` in your LAMMPS input script.
+To apply the deformation path during a molecular dynamics simulation, just add `include dir.depmod/lmp_fix_deform.mod` in your LAMMPS input script.
 
 <!-- ### Command Line Utility -->
 
