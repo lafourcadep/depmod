@@ -4,17 +4,17 @@ import numpy as np
 import scipy.optimize
 
 ArrayLike = np._typing.ArrayLike
-ndarray = np.ndarray
+NDarray = np.ndarray
 
 
-def check_vector_orthogonality(u: ndarray, v: ndarray, tol: float = 1.0e-8):
+def check_vector_orthogonality(u: NDarray, v: NDarray, tol: float = 1.0e-8):
     """Check if two vector are orthogonal.
 
     Two vectors x, y in R are orthogonal if x·y = 0
 
     Parameters
     ----------
-    u, v: np.ndarray
+    u, v: np.NDarray
         2 vector
     tol: float, optional, default=1.0e-8
 
@@ -25,17 +25,17 @@ def check_vector_orthogonality(u: ndarray, v: ndarray, tol: float = 1.0e-8):
     return np.dot(u, v) < tol
 
 
-def trim_array(v: ndarray, tol: float = 1.0e-8) -> ndarray:
+def trim_array(v: NDarray, tol: float = 1.0e-8) -> NDarray:
     w = v.copy()
     w[np.where(np.abs(w) <= tol)] = 0.0
     return w
 
 
-def trim_array_inplace(v: ndarray, tol: float = 1.0e-8) -> None:
+def trim_array_inplace(v: NDarray, tol: float = 1.0e-8) -> None:
     v[np.where(np.abs(v) <= tol)] = 0.0
 
 
-def unitvec(v: ndarray, tol: float = 1.0e-8) -> ndarray:
+def unitvec(v: NDarray, tol: float = 1.0e-8) -> NDarray:
     norml2 = np.linalg.norm(v)
     if norml2 > tol:
         return v / norml2
@@ -62,7 +62,7 @@ def spherical_basis(theta, phi, chi):
     return (u_rho, u_theta, u_phi)
 
 
-def dirvec(theta: float, phi: float) -> ndarray:
+def dirvec(theta: float, phi: float) -> NDarray:
     """Return the direction vector defined by the angle teta and phi.
 
     Parameters
@@ -72,7 +72,7 @@ def dirvec(theta: float, phi: float) -> ndarray:
 
     Returns
     -------
-    np.ndarray
+    np.NDarray
         The direction vector
 
     """
@@ -80,8 +80,8 @@ def dirvec(theta: float, phi: float) -> ndarray:
 
 
 def fit_n_order_polynomial_with_fixed_offset(
-    x: ndarray, y: ndarray, n: int = 3, offset: float = 0.0, include_zero: bool = False
-) -> ndarray:
+    x: NDarray, y: NDarray, n: int = 3, offset: float = 0.0, include_zero: bool = False
+) -> NDarray:
     """Fit coefficients of arbitrary N-order polynomial with fixing the offset.
 
     Parameters
@@ -91,7 +91,7 @@ def fit_n_order_polynomial_with_fixed_offset(
 
     Returns
     -------
-    np.ndarray
+    NDarray
         The normalized vector
     """
 

@@ -30,18 +30,7 @@ inline bool endswith(StringView str, StringView suffix) {
   return (str.size() >= suffix.size()) && (std::memcmp(str.data() + (str.size() - suffix.size()), suffix.data(), suffix.size()) == 0);
 }
 
-struct IsHashComment {
-  constexpr bool operator()(char c) const noexcept {
-    return c == '#';
-  }
-};
 
-template <typename Predicate>
-inline bool skipline_tmpl(StringView str, Predicate&& predicate) noexcept {
-  return str.empty() || predicate(str.front());
-}
-
-inline bool skipline(StringView str) noexcept { return skipline_tmpl(str, IsHashComment{}); }
 
 /* ------------------------------------------------------------------------- */
 
@@ -52,6 +41,7 @@ template <size_t Size> struct TokenSetTmpl {
   size_t len = 0;
 
   inline void clear() noexcept { len = 0; }
+  inline void reset() noexcept { tokens = {0}; clear(); }
 
   inline StringView* data() noexcept { return tokens.data(); }
   inline const StringView* data() const noexcept { return tokens.data(); }
@@ -88,23 +78,23 @@ using TokenSet = TokenSetTmpl<256>;
 
 /* ------------------------------------------------------------------------- */
 
-struct IsSpace {
-  constexpr bool operator()(char c) const noexcept {
-    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+template <char... Chars> struct IsChar {
+  constexpr bool operator()(char c) const noexcept { return ((c == Chars) || ...); }
+  constexpr bool operator()(const char* cptr) const noexcept {
+    return cptr && ((*cptr == Chars) || ...);
   }
+  // constexpr bool operator()(const char* cptr) const noexcept { return cptr && this(*cptr); } //
+  // Equivalent ?
 };
 
-struct SpaceDelimiter {
-  constexpr bool operator()(char c) const noexcept { return c == ' ' || c == '\t'; }
-};
-
-struct CommaDelimiter {
-  constexpr bool operator()(char c) const noexcept { return c == ','; }
-};
-
-struct ColumnDelimiter {
-  constexpr bool operator()(char c) const noexcept { return c == ':'; }
-};
+struct IsSpace : IsChar<' ', '\t', '\n', '\r'> {};
+struct SpaceDelimiter : IsChar<' ', '\t'> {};
+struct CommaDelimiter : IsChar<','> {};
+struct ColumnDelimiter : IsChar<':'> {};
+struct SemiColumnDelimiter : IsChar<';'> {};
+struct DoubleQuoteDelimiter : IsChar<'"'> {};
+struct SingleQuoteDelimiter : IsChar<'\''> {};
+struct IsHashComment : IsChar<'#'> {};
 
 template <typename Predicate>
 inline StringView ltrim(StringView str, Predicate&& predicate) noexcept {
@@ -135,16 +125,49 @@ inline StringView trim(StringView str, Predicate&& predicate) noexcept {
 
 inline StringView trim_spaces(StringView str) noexcept { return trim(str, IsSpace{}); }
 
+template <typename Predicate>
+inline bool skipline_tmpl(StringView str, Predicate&& predicate) noexcept {
+  return str.empty() || predicate(str.front());
+}
+
+inline bool skipline(StringView str) noexcept { return skipline_tmpl(str, IsHashComment{}); }
+
+template <typename Predicate> inline bool front(StringView str, Predicate&& predicate) {
+  return predicate(str);
+};
+
+template <char... Chars> inline bool front(StringView str) {
+  return front(str, IsChar<Chars...>{});
+}
+
+// template <typename Callback, typename Delimiter>
+// inline void split(StringView str, Delimiter&& delimiter, Callback&& callback) noexcept {
+//   const char* data = str.data();
+//   const char* end = data + str.size();
+//   while (data < end) {
+//     while (data < end && delimiter(*data)) {
+//       ++data;
+//     }
+//     const char* token_start = data;
+//     while (data < end && !delimiter(*data)) {
+//       ++data;
+//     }
+//     if (token_start != data) {
+//       callback(StringView(token_start, data - token_start));
+//     }
+//   }
+// }
+
 template <typename Callback, typename Delimiter>
 inline void split(StringView str, Delimiter&& delimiter, Callback&& callback) noexcept {
   const char* data = str.data();
   const char* end = data + str.size();
-  while (data < end) {
-    while (data < end && delimiter(*data)) {
+  while ((data < end)) {
+    while (data < end && delimiter(data)) {
       ++data;
     }
     const char* token_start = data;
-    while (data < end && !delimiter(*data)) {
+    while (data < end && !delimiter(data)) {
       ++data;
     }
     if (token_start != data) {

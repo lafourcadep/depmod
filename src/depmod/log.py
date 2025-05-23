@@ -18,4 +18,5 @@ def get_logger(level: int = 10) -> logging.Logger:
 
     return logger
 
+
 logger = get_logger(10)
