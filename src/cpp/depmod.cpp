@@ -11,23 +11,24 @@
 
 namespace py = pybind11;
 
-
 template <bool LAMMPS>
-void generate_box_evolution_data(DeformationPath* defpath, py::array_t<double> buffer) {
+void generate_box_evolution_data(DeformationPath* defpath, py::array_t<double> buffer, size_t buffer_offset) {
 
   constexpr size_t index_H = 2;
   constexpr size_t index_G = 11;
   constexpr size_t index_F = 20;
 
-  size_t imax = defpath->imax();
+  size_t i_start = buffer_offset + 1;
+  size_t imax = buffer_offset + defpath->imax();
   size_t kmax = defpath->kpts();
   double dt = defpath->dt();
 
-
   auto buf = buffer.mutable_unchecked<2>();
 
+  // always accumumate deformation from H0
+  // this ensures that F is continuous for exastamp
   Map<const Matrix3d> H0(buf.data(0, index_H), 3, 3);
-  Map<const Matrix3d> F0(buf.data(0, index_F), 3, 3);
+  Map<const Matrix3d> F0(buf.data(buffer_offset, index_F), 3, 3);
 
   Map<Matrix3d> Hi(NULL, 3, 3);
   Map<Matrix3d> Gi(NULL, 3, 3);
@@ -36,7 +37,7 @@ void generate_box_evolution_data(DeformationPath* defpath, py::array_t<double> b
   Matrix3d L = Matrix3d::Zero();
   Matrix3d Fj = F0;
 
-  for (size_t i = 1; i < imax; ++i) {
+  for (size_t i = i_start; i < imax; ++i) {
 
     double t_s = i * kmax * dt;
 
@@ -72,12 +73,10 @@ void generate_box_evolution_data(DeformationPath* defpath, py::array_t<double> b
   }
 };
 
-
-
-void read_lattice_from_file(py::array_t<double> x, const std::string& file,
-                            const std::string& format, const std::string& compression) {
-  auto cell = x.mutable_unchecked<2>();
-  io::Context ctx = io::read_atom_file(file, format, compression);
+void read_lattice_from_file(py::array_t<double> buf, const std::string& file,
+                            const std::string& fmt, const std::string& compression) {
+  auto cell = buf.mutable_unchecked<2>();
+  io::Context ctx = io::read_atom_file(file, fmt, compression);
   for (size_t i = 0; i < 3; ++i) {
     for (size_t j = 0; j < 3; ++j) {
       cell(i, j) = ctx.cell[i][j];

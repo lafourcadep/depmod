@@ -7,6 +7,7 @@ from __future__ import annotations
 import numpy as np
 
 from depmod._lib import read_lattice_from_file
+from depmod.core import exastamp, lammps, lmp, xsp
 from depmod.deformation import Compression, Deformation, DeformationPath, PureShear, Traction
 
 
@@ -20,4 +21,4 @@ def read_lattice(file: str, format: str = "", compression: str = ""):
 
 
 __version__ = "1.0.0"
-__all__ = ["DeformationPath", "Deformation", "Traction", "Compression", "PureShear", "read_lattice_from_file"]
+__all__ = ["DeformationPath", "Deformation", "Traction", "Compression", "PureShear", "read_lattice_from_file", "lammps", "lmp", "exastamp", "xsp"]

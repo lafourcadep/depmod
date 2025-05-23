@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import logging
 import sys
 
@@ -20,3 +21,4 @@ def get_logger(level: int = 10) -> logging.Logger:
 
 
 logger = get_logger(10)
+logger.now = lambda: datetime.datetime.now().strftime("%d %b %Y - %H:%M:%S")
