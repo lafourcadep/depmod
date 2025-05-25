@@ -105,7 +105,7 @@ class lammps:
     ) -> None:
         """Write LAMMPS 'fix deform' by part"""
 
-        ts, lx, ly, lz, yz, xz, xy = box_data.T[(1, *(2 + lammps.TRIU_INDS_FLAT)), :]
+        ts, lx, ly, lz, yz, xz, xy = box_data.T[(1, *(2 + 9 + lammps.TRIU_INDS_FLAT)), :]
         t = ts * convert("s", lammps_unit("time", usys=units))
         dir_label = ["x", "y", "z", "yz", "xz", "xy"]
 

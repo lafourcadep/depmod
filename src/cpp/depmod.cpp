@@ -39,7 +39,7 @@ void generate_box_evolution_data(DeformationPath* defpath, py::array_t<double> b
 
   for (size_t i = i_start; i < imax; ++i) {
 
-    double t_s = i * kmax * dt;
+    double t_s = buf(i - 1, 1) + kmax * dt;
 
     buf(i, 0) = i;
     buf(i, 1) = t_s;

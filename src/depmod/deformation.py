@@ -106,13 +106,14 @@ class DeformationPath(_DeformationPath):
         strain_rate_obj = None
         kw = kw or {}
 
-        if isinstance(strain_rate, double):
+        if isinstance(strain_rate, (double, int)):
             strain_rate_obj = _StrainRate(strain_rate)
         elif isinstance(strain_rate, str):
             expr_str = strain_rate
             for k, v in kw.items():
-                expr_str.replace(k, v)
-            strain_rate_obj = _CustomExpressionStrainRate(strain_rate)
+                expr_str = expr_str.replace(k, str(v))
+
+            strain_rate_obj = _CustomExpressionStrainRate(expr_str)
 
         if not strain_rate_obj:
             raise RuntimeError("Invalid strain_rate...")
