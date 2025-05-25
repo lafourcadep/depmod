@@ -34,6 +34,9 @@ dev = [
     "pylint"
 ]
 
+[project.scripts]
+depmod = "depmod.cli:invoke_depmod_cli"
+
 [tool.ruff]
 line-length = 120
 

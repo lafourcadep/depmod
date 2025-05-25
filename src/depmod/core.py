@@ -47,6 +47,7 @@ def save_box_evolution_data(filename: str | Path | None, buffer: ArrayLike):
         gstr = ",".join([f"G_{i:d}{j:d}" for i in range(1, 4) for j in range(1, 4)])
         fstr = ",".join([f"F_{i:d}{j:d}" for i in range(1, 4) for j in range(1, 4)])
         np.savetxt(filename, buffer, header="index,t_ns," + hstr + gstr + fstr, delimiter=",", comments="", fmt="%.20e")
+        logger.info(f"Box evolution data saved to : {filename}")
 
 
 class lammps:
@@ -60,15 +61,22 @@ class lammps:
         zaxis: ArrayLike | None = None,
         filename: str | None = None,
     ) -> NDarray:
+
+        logger.info("Start generatation of LAMMPS box evolution data")
+
         lattice = np.array(lattice, dtype=np.float64)
-        assert np.allclose(lattice, np.triu(lattice))
+        if not np.allclose(lattice, np.triu(lattice)):
+            raise ValueError()
 
         zaxis = zaxis or (0, 0, 1)
         zaxis = np.array(zaxis, dtype=np.float64)
-        assert len(zaxis) == 3
+        if not len(zaxis) == 3:
+            raise ValueError()
 
         if isinstance(deformation, DeformationPath):
             deformation = [deformation, ]
+
+        logger.info(f"Chain of {len(deformation):d} deformation path.")
 
         # Initialize empty array python side to avoid copy back from c++ to python
         buffer_size = 1 + sum([x.npts() for x in deformation])
@@ -78,10 +86,14 @@ class lammps:
         buffer[0, BUF_INDEX_G] = lattice.flatten(order="C")
         buffer[0, BUF_INDEX_F] = np.eye(3).flatten(order="C")
 
+        logger.info(f"Initialized buffer ({buffer_size}x{29})")
+
         buffer_offset = 0
         for deformation_path in deformation:
             lammps_generate_box_data(deformation_path, buffer, buffer_offset)
             buffer_offset += deformation_path.npts()
+
+        logger.info("Generation of box data completed")
 
         save_box_evolution_data(filename, buffer)
 
@@ -92,6 +104,7 @@ class lammps:
         box_data: NDarray, units: str = "metal", mod_file: str = "lmp_fix_deform.mod", fix_deform_step: size_t = 1
     ) -> None:
         """Write LAMMPS 'fix deform' by part"""
+
         ts, lx, ly, lz, yz, xz, xy = box_data.T[(1, *(2 + lammps.TRIU_INDS_FLAT)), :]
         t = ts * convert("s", lammps_unit("time", usys=units))
         dir_label = ["x", "y", "z", "yz", "xz", "xy"]
@@ -192,6 +205,8 @@ class lammps:
         with mkopen(mod_file, "w") as f:
             for block in [str_block_header, str_block_global_var, str_block_conditional, str_block_spline]:
                 f.write("\n".join(block) + "\n")
+
+        logger.info(f"LAMMPS deformation module saved to: {mod_file}")
 
     @staticmethod
     def write_deformation_module_poly3(
