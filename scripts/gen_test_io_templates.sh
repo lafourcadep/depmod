@@ -43,12 +43,20 @@ for tilt in 0 1; do
         skdef=""
     fi
 
-    outname=${s}_${sgrp}_${rx}x${ry}x${rz}${tilt_suffix}.lmp
-    atomsk_cmd="--create ${sgrp} ${a} ${s} -duplicate ${rx} ${ry} ${rz} ${skdef} -overwrite ${outname}"
+    for fmt in lmp xyz; do
 
-    atomsk ${atomsk_cmd}
-    gzip -fvk ${outname}
-    bzip2 -fvk ${outname}
-    xz -fvk ${outname}
+        outname=${s}_${sgrp}_${rx}x${ry}x${rz}${tilt_suffix}.${fmt}
+        if [[ $fmt == xyz ]]; then 
+            tmp=${outname%.xyz}.exyz
+        else
+            tmp=${outname}
+        fi
 
+        atomsk_cmd="--create ${sgrp} ${a} ${s} -duplicate ${rx} ${ry} ${rz} ${skdef} -overwrite ${tmp}"
+
+        atomsk ${atomsk_cmd}
+        gzip -fvk ${outname}
+        bzip2 -fvk ${outname}
+        xz -fvk ${outname}
+    done
 done

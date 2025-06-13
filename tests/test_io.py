@@ -11,6 +11,9 @@ def atomreader_sample_dir(template_dir):
 
 
 class Test_AtomReader_ReadAtom_LammpsData:
+    
+    fmt = ("lmp", "xyz")
+
     def assert_orthorombic_file(self, testfile):
         a = 3.58
         lattice = read_lattice(testfile)
@@ -37,17 +40,21 @@ class Test_AtomReader_ReadAtom_LammpsData:
             assert (lattice[ij] - 0.0) <= 1e-8
 
     def test_read(self, atomreader_sample_dir):
-        self.assert_orthorombic_file(atomreader_sample_dir / "Cu_fcc_2x3x4.lmp")
-        self.assert_triclinic_file(atomreader_sample_dir / "Cu_fcc_2x3x4_triclinic.lmp")
+        for fmt in self.fmt:
+            self.assert_orthorombic_file(atomreader_sample_dir / f"Cu_fcc_2x3x4.{fmt}")
+            self.assert_triclinic_file(atomreader_sample_dir / f"Cu_fcc_2x3x4_triclinic.{fmt}")
     
     def test_ortho_read_gzip(self, atomreader_sample_dir):
-        self.assert_orthorombic_file(atomreader_sample_dir / "Cu_fcc_2x3x4.lmp.gz")
-        self.assert_triclinic_file(atomreader_sample_dir / "Cu_fcc_2x3x4_triclinic.lmp.gz")
+        for fmt in self.fmt:
+            self.assert_orthorombic_file(atomreader_sample_dir / f"Cu_fcc_2x3x4.{fmt}.gz")
+            self.assert_triclinic_file(atomreader_sample_dir / f"Cu_fcc_2x3x4_triclinic.{fmt}.gz")
     
     def test_ortho_read_bzip2(self, atomreader_sample_dir):
-        self.assert_orthorombic_file(atomreader_sample_dir / "Cu_fcc_2x3x4.lmp.bz2")
-        self.assert_triclinic_file(atomreader_sample_dir / "Cu_fcc_2x3x4_triclinic.lmp.bz2")
+        for fmt in self.fmt:
+            self.assert_orthorombic_file(atomreader_sample_dir / f"Cu_fcc_2x3x4.{fmt}.bz2")
+            self.assert_triclinic_file(atomreader_sample_dir / f"Cu_fcc_2x3x4_triclinic.{fmt}.bz2")
 
     def test_ortho_read_lzma(self, atomreader_sample_dir):
-        self.assert_orthorombic_file(atomreader_sample_dir / "Cu_fcc_2x3x4.lmp.xz")
-        self.assert_triclinic_file(atomreader_sample_dir / "Cu_fcc_2x3x4_triclinic.lmp.xz")
+        for fmt in self.fmt:
+            self.assert_orthorombic_file(atomreader_sample_dir / f"Cu_fcc_2x3x4.{fmt}.xz")
+            self.assert_triclinic_file(atomreader_sample_dir / f"Cu_fcc_2x3x4_triclinic.{fmt}.xz")
