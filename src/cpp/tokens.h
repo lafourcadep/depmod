@@ -9,6 +9,8 @@
 #include <string>
 #include <string_view>
 
+#define SPLIT_MAX_COUNT 10000
+
 inline std::string strf(const char* format, ...) {
   char buffer[1024];
   va_list args;
@@ -17,324 +19,9 @@ inline std::string strf(const char* format, ...) {
   return std::string(buffer);
 };
 
-namespace tokens {
-
-using StringView = std::string_view;
-using StringViewSpan = std::span<const StringView>;
-
-inline bool startswith(StringView str, StringView prefix) {
-  return (str.size() >= prefix.size()) && (std::memcmp(str.data(), prefix.data(), prefix.size()) == 0);
+template <typename T, typename C> inline constexpr T enum_to(C EnumMember) {
+  return static_cast<T>(EnumMember);
 }
-
-inline bool endswith(StringView str, StringView suffix) {
-  return (str.size() >= suffix.size()) && (std::memcmp(str.data() + (str.size() - suffix.size()), suffix.data(), suffix.size()) == 0);
-}
-
-
-
-/* ------------------------------------------------------------------------- */
-
-// Struct that holds a fixed size array of token.
-// Warning: Tokens are std::string_view so the TokenSet does not own the data
-template <size_t Size> struct TokenSetTmpl {
-  alignas(64) std::array<StringView, Size> tokens{};
-  size_t len = 0;
-
-  inline void clear() noexcept { len = 0; }
-  inline void reset() noexcept { tokens = {0}; clear(); }
-
-  inline StringView* data() noexcept { return tokens.data(); }
-  inline const StringView* data() const noexcept { return tokens.data(); }
-
-  inline StringView& operator[](size_t i) noexcept { return tokens[i]; }
-  inline const StringView& operator[](size_t i) const noexcept { return tokens[i]; }
-
-  template <size_t index> inline constexpr StringView& at() noexcept {
-    static_assert(index < Size);
-    return tokens[index];
-  }
-
-  template <size_t index> inline constexpr const StringView& at() const noexcept {
-    static_assert(index < Size);
-    return tokens[index];
-  }
-
-  constexpr size_t size() const noexcept { return len; }
-  constexpr size_t capacity() const noexcept { return Size; }
-  constexpr inline bool full() const noexcept { return size() >= capacity(); }
-
-  inline void push_back(StringView token) noexcept {
-    if (!full()) tokens[len++] = token;
-  }
-
-  // iteration accessor
-  StringView* begin() noexcept { return tokens.begin(); }
-  const StringView* begin() const noexcept { return tokens.begin(); }
-  StringView* end() noexcept { return tokens.begin() + len; }
-  const StringView* end() const noexcept { return tokens.begin() + len; }
-};
-
-using TokenSet = TokenSetTmpl<256>;
-
-/* ------------------------------------------------------------------------- */
-
-template <char... Chars> struct IsChar {
-  constexpr bool operator()(char c) const noexcept { return ((c == Chars) || ...); }
-  constexpr bool operator()(const char* cptr) const noexcept {
-    return cptr && ((*cptr == Chars) || ...);
-  }
-  // constexpr bool operator()(const char* cptr) const noexcept { return cptr && this(*cptr); } //
-  // Equivalent ?
-};
-
-struct IsSpace : IsChar<' ', '\t', '\n', '\r'> {};
-struct SpaceDelimiter : IsChar<' ', '\t'> {};
-struct CommaDelimiter : IsChar<','> {};
-struct ColumnDelimiter : IsChar<':'> {};
-struct SemiColumnDelimiter : IsChar<';'> {};
-struct DoubleQuoteDelimiter : IsChar<'"'> {};
-struct SingleQuoteDelimiter : IsChar<'\''> {};
-struct IsHashComment : IsChar<'#'> {};
-
-template <typename Predicate>
-inline StringView ltrim(StringView str, Predicate&& predicate) noexcept {
-  while (!str.empty() && predicate(str.front())) {
-    str.remove_prefix(1);
-  }
-  return str;
-}
-
-template <typename Predicate>
-inline StringView rtrim(StringView str, Predicate&& predicate) noexcept {
-  while (!str.empty() && predicate(str.back())) {
-    str.remove_suffix(1);
-  }
-  return str;
-}
-
-template <typename Predicate>
-inline StringView trim(StringView str, Predicate&& predicate) noexcept {
-  while (!str.empty() && predicate(str.front())) {
-    str.remove_prefix(1);
-  }
-  while (!str.empty() && predicate(str.back())) {
-    str.remove_suffix(1);
-  }
-  return str;
-}
-
-inline StringView trim_spaces(StringView str) noexcept { return trim(str, IsSpace{}); }
-
-template <typename Predicate>
-inline bool skipline_tmpl(StringView str, Predicate&& predicate) noexcept {
-  return str.empty() || predicate(str.front());
-}
-
-inline bool skipline(StringView str) noexcept { return skipline_tmpl(str, IsHashComment{}); }
-
-template <typename Predicate> inline bool front(StringView str, Predicate&& predicate) {
-  return predicate(str);
-};
-
-template <char... Chars> inline bool front(StringView str) {
-  return front(str, IsChar<Chars...>{});
-}
-
-// template <typename Callback, typename Delimiter>
-// inline void split(StringView str, Delimiter&& delimiter, Callback&& callback) noexcept {
-//   const char* data = str.data();
-//   const char* end = data + str.size();
-//   while (data < end) {
-//     while (data < end && delimiter(*data)) {
-//       ++data;
-//     }
-//     const char* token_start = data;
-//     while (data < end && !delimiter(*data)) {
-//       ++data;
-//     }
-//     if (token_start != data) {
-//       callback(StringView(token_start, data - token_start));
-//     }
-//   }
-// }
-
-template <typename Callback, typename Delimiter>
-inline void split(StringView str, Delimiter&& delimiter, Callback&& callback) noexcept {
-  const char* data = str.data();
-  const char* end = data + str.size();
-  while ((data < end)) {
-    while (data < end && delimiter(data)) {
-      ++data;
-    }
-    const char* token_start = data;
-    while (data < end && !delimiter(data)) {
-      ++data;
-    }
-    if (token_start != data) {
-      callback(StringView(token_start, data - token_start));
-    }
-  }
-}
-
-template <typename Delimiter, size_t N>
-inline void tokenize_tmpl(const StringView str, TokenSetTmpl<N>& tokens, Delimiter&& delimiter) {
-  tokens.clear();
-  split(str, delimiter, [&tokens](StringView token) {
-    if (!token.empty()) {
-      tokens.push_back(token);
-    }
-  });
-}
-
-template <typename Delimiter, size_t N>
-inline void tokenize_nmax_tmpl(const StringView str, TokenSetTmpl<N>& tokens, Delimiter&& delimiter,
-                               size_t nmax) {
-  tokens.clear();
-  split(str, delimiter, [&tokens, &nmax](StringView token) {
-    if (!token.empty() && tokens.size() < nmax) {
-      tokens.push_back(token);
-    }
-  });
-}
-
-inline void tokenize(const StringView str, TokenSet& tokens) {
-  return tokenize_tmpl(str, tokens, SpaceDelimiter{});
-}
-
-inline void tokenize(const StringView str, TokenSet& tokens, size_t nmax) {
-  return tokenize_nmax_tmpl(str, tokens, SpaceDelimiter{}, nmax);
-}
-
-/* ------------------------------------------------------------------------- */
-
-// Return true if 'token' match any of the needles
-// Stop at the first match and set 'index' to the matching index in 'needles'.
-inline bool token_match_any(StringView token, StringViewSpan needles, size_t& index) {
-  const size_t nc = needles.size();
-  if (nc == 0) {
-    return false;
-  }
-  for (size_t i = 0; i < nc; ++i) {
-    if (token == needles[i]) {
-      index = i;
-      return true;
-    }
-  }
-  return false;
-}
-
-inline bool token_match_any(StringView token, StringViewSpan needles) {
-  size_t index;
-  return token_match_any(token, needles, index);
-}
-
-// Return true when any token in 'tokens' match any needle in 'needles'
-// Stop at the first match and provide i and j indices of the token and needles respectively.
-inline bool token_set_match_any(StringViewSpan tokens, StringViewSpan needles, size_t& ii, size_t& jj) {
-  const size_t token_count = tokens.size();
-  const size_t needle_count = needles.size();
-
-  if (needle_count == 0) {
-    return false;
-  }
-
-  for (size_t i = 0; i < token_count; ++i) {
-    for (size_t j = 0; j < needle_count; ++j) {
-      if (tokens[i] == tokens[j]) {
-        ii = i; // token index
-        jj = j; // needle index
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-inline bool token_set_match_any(StringViewSpan tokens, StringViewSpan needles) {
-  size_t i, j;
-  return token_set_match_any(tokens, needles, i, j);
-}
-
-// Returns true if the sequence of needles is present in the sequence of tokens
-inline bool token_set_match_seq(StringViewSpan tokens, StringViewSpan needles, size_t& index) {
-  const size_t token_count = tokens.size();
-  const size_t needle_count = needles.size();
-
-  if (needle_count == 0 || token_count < needle_count) {
-    return false;
-  }
-
-  for (size_t i = 0; i <= token_count - needle_count; ++i) {
-    bool match = true;
-    for (size_t j = 0; j < needle_count; ++j) {
-      if (tokens[i + j] != needles[j]) {
-        match = false;
-        break;
-      }
-    }
-    if (match) {
-      index = i;
-      return true;
-    }
-  }
-  return false;
-}
-
-inline bool token_set_match_seq(StringViewSpan tokens, StringViewSpan needles) {
-  size_t index;
-  return token_set_match_seq(tokens, needles, index);
-}
-
-template <size_t N> using TokenNeedles = std::array<StringView, N>;
-
-template <size_t N> inline bool token_match_any(const StringView token, const TokenNeedles<N>& needles) {
-  return token_match_any(token, StringViewSpan(needles.data(), N));
-}
-
-template <size_t N> inline bool token_match_any(const StringView token, const TokenNeedles<N>& needles, size_t& index) {
-  return token_match_any(token, StringViewSpan(needles.data(), N), index);
-}
-
-template <size_t N, size_t M> inline bool token_set_match_any(const TokenSetTmpl<M>& tokens, const TokenNeedles<N>& needles) {
-  return token_set_match_any(StringViewSpan(tokens.data(), tokens.size()), StringViewSpan(needles.data(), N));
-}
-
-template <size_t N, size_t M> inline bool token_set_match_any(const TokenSetTmpl<M>& tokens, const TokenNeedles<N>& needles, size_t& i, size_t& j) {
-  return token_set_match_any(StringViewSpan(tokens.data(), tokens.size()), StringViewSpan(needles.data(), N), i, j);
-}
-
-template <size_t N, size_t M> inline bool token_set_match_seq(const TokenSetTmpl<M>& tokens, const TokenNeedles<N>& needles) {
-  return token_set_match_seq(StringViewSpan(tokens.data(), tokens.size()), StringViewSpan(needles.data(), N));
-}
-
-template <size_t N, size_t M> inline bool token_set_match_seq(const TokenSetTmpl<M>& tokens, const TokenNeedles<N>& needles, size_t& index) {
-  return token_set_match_seq(StringViewSpan(tokens.data(), tokens.size()), StringViewSpan(needles.data(), N), index);
-}
-
-/* ------------------------------------------------------------------------- */
-// convertion functions
-
-// convert a string_view token to numeric type
-template <typename T> bool token_to_num(const StringView token, T& rval) {
-  auto [ptr, err] = std::from_chars(token.begin(), token.begin() + token.size(), rval);
-  return (err == std::errc() && ptr == token.end());
-}
-
-// Dark magic that expand to tokens_to_num with automatic type infering
-#define parb ()
-#define IOexpand(...) IOexpandB(IOexpandB(IOexpandB(IOexpandB(__VA_ARGS__))))
-#define IOexpandB(...) IOexpandA(IOexpandA(IOexpandA(IOexpandA(__VA_ARGS__))))
-#define IOexpandA(...) __VA_ARGS__
-
-#define call_parse(token, value) token_to_num<decltype(value)>(token, value)
-#define IOfor_each(macro, ...) __VA_OPT__(IOexpand(IOfor_each_helper(macro, __VA_ARGS__)))
-#define IOfor_each_helper(macro, token, value, ...)                                                \
-  macro(token, value) __VA_OPT__(IOfor_each_again parb(macro, __VA_ARGS__))
-#define IOfor_each_again() &&IOfor_each_helper
-#define tokens_to_num(...) IOfor_each(call_parse, __VA_ARGS__)
-
-} // namespace tokens
 
 namespace cmp {
 
@@ -456,4 +143,548 @@ template <typename T> constexpr T wrap(T x, T max) {
   return (r < static_cast<T>(0)) ? r + max : r;
 }
 
+} // namespace cmp
+
+namespace tokens {
+
+using StringView = std::string_view;
+using StringViewSpan = std::span<const StringView>;
+
+inline bool startswith(StringView str, StringView prefix) {
+  return (str.size() >= prefix.size()) && (std::memcmp(str.data(), prefix.data(), prefix.size()) == 0);
 }
+
+inline bool endswith(StringView str, StringView suffix) {
+  return (str.size() >= suffix.size()) && (std::memcmp(str.data() + (str.size() - suffix.size()), suffix.data(), suffix.size()) == 0);
+}
+
+/* ------------------------------------------------------------------------- */
+
+// Struct that holds a fixed size array of token.
+// Warning: Tokens are std::string_view so the TokenSet does not own the data
+template <size_t Size> struct TokenSetTmpl {
+  alignas(64) std::array<StringView, Size> tokens{};
+  size_t len = 0;
+
+  inline void clear() noexcept { len = 0; }
+  inline void reset() noexcept { tokens = {0}; clear(); }
+
+  inline StringView* data() noexcept { return tokens.data(); }
+  inline const StringView* data() const noexcept { return tokens.data(); }
+
+  inline StringView& operator[](size_t i) noexcept { return tokens[i]; }
+  inline const StringView& operator[](size_t i) const noexcept { return tokens[i]; }
+
+  template <size_t index> inline constexpr StringView& at() noexcept {
+    static_assert(index < Size);
+    return tokens[index];
+  }
+
+  template <size_t index> inline constexpr const StringView& at() const noexcept {
+    static_assert(index < Size);
+    return tokens[index];
+  }
+
+  constexpr size_t size() const noexcept { return len; }
+  constexpr size_t capacity() const noexcept { return Size; }
+  constexpr inline bool full() const noexcept { return size() >= capacity(); }
+  constexpr inline bool atleast(size_t n) const noexcept { return size() >= n; }
+
+  inline void push_back(StringView token) noexcept {
+    if (!full()) {
+      tokens[len++] = token;
+    }
+  }
+
+  inline void push_back_unchecked(StringView token) noexcept { tokens[len++] = token; }
+
+  // iteration accessor
+  StringView* begin() noexcept { return tokens.begin(); }
+  const StringView* begin() const noexcept { return tokens.begin(); }
+  StringView* end() noexcept { return tokens.begin() + len; }
+  const StringView* end() const noexcept { return tokens.begin() + len; }
+};
+
+using TokenSet = TokenSetTmpl<256>;
+
+/* ------------------------------------------------------------------------- */
+
+template <char... Chars> struct IsChar {
+  constexpr bool operator()(char c) const noexcept { return ((c == Chars) || ...); }
+  constexpr bool operator()(const char* cptr) const noexcept {
+    return cptr && ((*cptr == Chars) || ...);
+  }
+  // constexpr bool operator()(const char* cptr) const noexcept { return cptr && this(*cptr); } //
+  // Equivalent ?
+};
+
+struct IsSpace : IsChar<' ', '\t', '\n', '\r'> {};
+struct SpaceDelimiter : IsChar<' ', '\t'> {};
+struct CommaDelimiter : IsChar<','> {};
+struct ColumnDelimiter : IsChar<':'> {};
+struct SemiColumnDelimiter : IsChar<';'> {};
+struct DoubleQuoteDelimiter : IsChar<'"'> {};
+struct SingleQuoteDelimiter : IsChar<'\''> {};
+struct IsHashComment : IsChar<'#'> {};
+
+template <typename Predicate>
+inline StringView ltrim(StringView str, Predicate&& predicate) noexcept {
+  while (!str.empty() && predicate(str.front())) {
+    str.remove_prefix(1);
+  }
+  return str;
+}
+
+template <typename Predicate>
+inline StringView rtrim(StringView str, Predicate&& predicate) noexcept {
+  while (!str.empty() && predicate(str.back())) {
+    str.remove_suffix(1);
+  }
+  return str;
+}
+
+template <typename Predicate>
+inline StringView trim(StringView str, Predicate&& predicate) noexcept {
+  while (!str.empty() && predicate(str.front())) {
+    str.remove_prefix(1);
+  }
+  while (!str.empty() && predicate(str.back())) {
+    str.remove_suffix(1);
+  }
+  return str;
+}
+
+inline StringView trim_spaces(StringView str) noexcept { return trim(str, IsSpace{}); }
+
+template <typename Predicate>
+inline bool skipline_tmpl(StringView str, Predicate&& predicate) noexcept {
+  return str.empty() || predicate(str.front());
+}
+
+inline bool skipline(StringView str) noexcept { return skipline_tmpl(str, IsHashComment{}); }
+
+template <typename Predicate> inline bool front(StringView str, Predicate&& predicate) {
+  return predicate(str);
+};
+
+template <char... Chars> inline bool front(StringView str) {
+  return front(str, IsChar<Chars...>{});
+}
+
+
+template <typename Callback, typename Delimiter>
+inline void split(
+    StringView str,
+    Delimiter&& delimiter,
+    Callback&& callback,
+    size_t max_count = SPLIT_MAX_COUNT) noexcept {
+  size_t count = 0;
+  const char* data = str.data();
+  const char* end = data + str.size();
+  while (data < end && cmp::lt(count, max_count)) {
+    while (data < end && delimiter(data)) {
+      ++data;
+    }
+    const char* token_start = data;
+    while (data < end && !delimiter(data)) {
+      ++data;
+    }
+    if (token_start != data) {
+      callback(StringView(token_start, static_cast<size_t>(data - token_start)));
+      ++count;
+    }
+  }
+}
+
+template <typename Delimiter, size_t N>
+inline void tokenize_impl(
+    const StringView str,
+    TokenSetTmpl<N>& tokens,
+    Delimiter&& delimiter,
+    size_t max_count = N) noexcept {
+  tokens.clear();
+  split(str, delimiter, [&tokens](StringView token) {
+    tokens.push_back_unchecked(token);
+  }, cmp::min(max_count, N));
+}
+
+inline void tokenize(const StringView str, TokenSet& tokens) {
+  return tokenize_impl(str, tokens, SpaceDelimiter{});
+}
+
+inline void tokenize(const StringView str, TokenSet& tokens, size_t max_count) {
+  return tokenize_impl(str, tokens, SpaceDelimiter{}, max_count);
+}
+
+/* ------------------------------------------------------------------------- */
+
+// Return true if 'token' match any of the needles
+// Stop at the first match and set 'index' to the matching index in 'needles'.
+inline bool token_match_any(StringView token, StringViewSpan needles, size_t& index) {
+  const size_t nc = needles.size();
+  if (nc == 0) {
+    return false;
+  }
+  for (size_t i = 0; i < nc; ++i) {
+    if (token == needles[i]) {
+      index = i;
+      return true;
+    }
+  }
+  return false;
+}
+
+inline bool token_match_any(StringView token, StringViewSpan needles) {
+  size_t index;
+  return token_match_any(token, needles, index);
+}
+
+// Return true when any token in 'tokens' match any needle in 'needles'
+// Stop at the first match and provide i and j indices of the token and needles respectively.
+inline bool token_set_match_any(StringViewSpan tokens, StringViewSpan needles, size_t& ii, size_t& jj) {
+  const size_t token_count = tokens.size();
+  const size_t needle_count = needles.size();
+
+  if (needle_count == 0) {
+    return false;
+  }
+
+  for (size_t i = 0; i < token_count; ++i) {
+    for (size_t j = 0; j < needle_count; ++j) {
+      if (tokens[i] == needles[j]) {
+        ii = i; // token index
+        jj = j; // needle index
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+inline bool token_set_match_any(StringViewSpan tokens, StringViewSpan needles) {
+  size_t i, j;
+  return token_set_match_any(tokens, needles, i, j);
+}
+
+// Returns true if the sequence of needles is present in the sequence of tokens
+inline bool token_set_match_seq(StringViewSpan tokens, StringViewSpan needles, size_t& index) {
+  const size_t token_count = tokens.size();
+  const size_t needle_count = needles.size();
+
+  if (needle_count == 0 || token_count < needle_count) {
+    return false;
+  }
+
+  for (size_t i = 0; i <= token_count - needle_count; ++i) {
+    bool match = true;
+    for (size_t j = 0; j < needle_count; ++j) {
+      if (tokens[i + j] != needles[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      index = i;
+      return true;
+    }
+  }
+  return false;
+}
+
+inline bool token_set_match_seq(StringViewSpan tokens, StringViewSpan needles) {
+  size_t index;
+  return token_set_match_seq(tokens, needles, index);
+}
+
+template <size_t N>
+using TokenNeedles = std::array<StringView, N>;
+
+template <size_t N>
+inline bool token_match_any(const StringView token, const TokenNeedles<N>& needles) {
+  return token_match_any(token, StringViewSpan(needles.data(), N));
+}
+
+template <size_t N>
+inline bool token_match_any(const StringView token, const TokenNeedles<N>& needles, size_t& index) {
+  return token_match_any(token, StringViewSpan(needles.data(), N), index);
+}
+
+template <size_t N, size_t M>
+inline bool token_set_match_any(const TokenSetTmpl<M>& tokens, const TokenNeedles<N>& needles) {
+  return token_set_match_any(StringViewSpan(tokens.data(), tokens.size()), StringViewSpan(needles.data(), N));
+}
+
+template <size_t N, size_t M>
+inline bool token_set_match_any(const TokenSetTmpl<M>& tokens, const TokenNeedles<N>& needles, size_t& i, size_t& j) {
+  return token_set_match_any(
+      StringViewSpan(tokens.data(), tokens.size()), StringViewSpan(needles.data(), N), i, j);
+}
+
+template <size_t N, size_t M>
+inline bool token_set_match_seq(const TokenSetTmpl<M>& tokens, const TokenNeedles<N>& needles) {
+  return token_set_match_seq(StringViewSpan(tokens.data(), tokens.size()), StringViewSpan(needles.data(), N));
+}
+
+template <size_t N, size_t M>
+inline bool token_set_match_seq(const TokenSetTmpl<M>& tokens, const TokenNeedles<N>& needles, size_t& index) {
+  return token_set_match_seq(StringViewSpan(tokens.data(), tokens.size()), StringViewSpan(needles.data(), N), index);
+}
+
+/* ------------------------------------------------------------------------- */
+// convertion functions
+
+namespace numeric {
+
+template <typename T, bool Parsed>
+struct Parsable {
+
+  T value{};
+  static constexpr bool ignored = !Parsed;
+
+  template <typename... Args>
+  inline constexpr Parsable(Args&&... args) : value(std::forward<Args>(args)...) {}
+
+  inline constexpr operator T&() noexcept { return value; }
+  inline constexpr operator const T&() const noexcept { return value; }
+  inline constexpr Parsable& operator=(const T& other) noexcept {
+    value = other;
+    return *this;
+  }
+};
+
+template <typename T>
+struct is_parsed : std::true_type {};
+
+template <typename T, bool Parsed>
+struct is_parsed<Parsable<T, Parsed>> : std::bool_constant<Parsed> {};
+
+template <typename T>
+constexpr bool is_parsed_v = is_parsed<T>::value;
+
+template <typename T>
+concept ParsedValue = is_parsed_v<T>;
+
+template <typename T>
+bool parse_single_token_impl(const StringView token, T& rval) {
+  static_assert(std::is_arithmetic_v<T>, "parse_single_token_impl requires arithmetic type");
+  auto [ptr, err] = std::from_chars(token.begin(), token.begin() + token.size(), static_cast<T&>(rval));
+  return (err == std::errc() && ptr == token.end());
+}
+
+template <typename T, bool Parsed>
+bool parse_single_token_impl(const StringView token, Parsable<T, Parsed>& rval) {
+  static_assert(std::is_arithmetic_v<T>, "parse_single_token_impl requires arithmetic type");
+  auto [ptr, err] = std::from_chars(token.begin(), token.begin() + token.size(), static_cast<T&>(rval.value));
+  return (err == std::errc() && ptr == token.end());
+}
+
+template <typename T>
+bool parse_single_token(const StringView token, T& rval) {
+  if constexpr (ParsedValue<T>) {
+    return parse_single_token_impl(token, rval);
+  } else {
+    return true;
+  }
+}
+
+inline bool parse_tokens() noexcept { return true; }
+
+template <typename TokenType, typename ValueType, typename... Args>
+inline bool parse_tokens(const TokenType& token, ValueType& value, Args&&... args) noexcept {
+  if constexpr (sizeof...(args) == 0) {
+    return parse_single_token(token, value);
+  } else {
+    if (parse_single_token(token, value)) {
+      return parse_tokens(std::forward<Args>(args)...);
+    }
+    return false;
+  }
+}
+
+} // namespace numeric
+
+/* ----------------------- Legacy version ----------------------- */
+// convert a string_view token to numeric type
+// template <typename T> bool token_to_num(const StringView token, T& rval) {
+//   auto [ptr, err] = std::from_chars(token.begin(), token.begin() + token.size(), rval);
+//   return (err == std::errc() && ptr == token.end());
+// }
+
+
+/***
+// Dark magic that expand to tokens_to_num with automatic type infering
+#define parb ()
+#define IOexpand(...) IOexpandB(IOexpandB(IOexpandB(IOexpandB(__VA_ARGS__))))
+#define IOexpandB(...) IOexpandA(IOexpandA(IOexpandA(IOexpandA(__VA_ARGS__))))
+#define IOexpandA(...) __VA_ARGS__
+#define call_parse(token, value) token_to_num<decltype(value)>(token, value)
+#define IOfor_each(macro, ...) __VA_OPT__(IOexpand(IOfor_each_helper(macro, __VA_ARGS__)))
+#define IOfor_each_helper(macro, token, value, ...)                                                \
+  macro(token, value) __VA_OPT__(IOfor_each_again parb(macro, __VA_ARGS__))
+#define IOfor_each_again() &&IOfor_each_helper
+#define tokens_to_num(...) IOfor_each(call_parse, __VA_ARGS__)
+***/
+/* -----------------------  Legacy version ----------------------- */
+
+} // namespace tokens
+
+
+namespace enum_traits {
+
+template <typename T>
+concept has_count_member = requires { T::Count; };
+
+template <typename T>
+concept HasMemberCount = requires { T::Count; };
+
+template <typename T>
+concept HasMemberNone = requires { T::None; };
+
+template <has_count_member T>
+constexpr size_t enum_size() {
+  return static_cast<size_t>(T::Count);
+}
+
+template <typename T>
+constexpr size_t enum_to_index(T t) {
+  return static_cast<size_t>(t);
+}
+
+template <typename T>
+constexpr T enum_from_index(size_t index) {
+  return static_cast<T>(index);
+}
+
+template <typename Enum, typename Type>
+struct BasicEnumContainer {
+
+  constexpr inline void set(Enum e, const Type& value) {
+    static_assert(std::is_enum<Enum>());
+    if (enum_to_index(e) > enum_size<Enum>()) {
+      return;
+    }
+    _data[enum_to_index(e)] = value;
+  }
+
+  template <Enum e>
+  constexpr inline void set(const Type& value) {
+    set(e, value);
+  }
+
+  inline const Type& operator[](size_t index) const noexcept { return _data[index]; }
+  inline const Type& operator[](Enum e) const noexcept { return _data[enum_to_index(e)]; }
+
+private:
+  std::array<Type, enum_size<Enum>()> _data{};
+};
+
+template <typename Enum, typename Type, typename... Args>
+struct Builder;
+
+template <typename Enum, typename Type, typename Value, typename... Args>
+requires std::is_convertible_v<Value, Type>
+struct Builder<Enum, Type, Enum, Value, Args...> {
+  static constexpr void build(BasicEnumContainer<Enum, Type>& container, Enum e, Value v, Args... rest) {
+    container.set(e, Type(v));
+    Builder<Enum, Type, Args...>::build(container, rest...);
+  }
+};
+
+template <typename Enum, typename Type>
+struct Builder<Enum, Type> {
+  static constexpr void build(BasicEnumContainer<Enum, Type>&) {}
+};
+
+template <typename Enum, typename Type, typename... Args>
+constexpr BasicEnumContainer<Enum, Type> make_enum_container(Args... args) {
+  static_assert(sizeof...(args) % 2 == 0, "Must provide pairs of (Enum, Type)");
+  BasicEnumContainer<Enum, Type> container{};
+  Builder<Enum, Type, Args...>::build(container, args...);
+  return container;
+}
+
+} // namespace enum_traits
+
+
+namespace properties_traits {
+using namespace enum_traits;
+
+template <typename Enum>
+concept IsEnum = std::is_enum_v<Enum>;
+
+template <typename Type, typename Enum, Enum Type::* Member>
+concept TypeHasEnumMember = requires(Type t) {
+  { t.*Member } -> std::same_as<Enum&>;
+};
+
+template <typename Type, IsEnum Enum, Enum Type::* Member>
+requires TypeHasEnumMember<Type, Enum, Member> && HasMemberCount<Enum> && HasMemberNone<Enum>
+struct GenericContainer {
+  
+  using enum_t = Enum;
+
+protected:
+  size_t length = 0;
+  std::array<Type, enum_size<Enum>()> _data{};
+
+public:
+
+  template <Enum e>
+  constexpr const Type& get() const {
+    static_assert(enum_to_index(e) < enum_size<Enum>(), "PropertiesContainer::get : out-of-bound");
+    return _data[enum_to_index(e)];
+  }
+
+  template <Enum... args>
+  constexpr bool has() const {
+    return ((get<args>().*Member == args) && ...);
+  }
+
+  template <Enum... args>
+  constexpr bool any() const {
+    return ((get<args>().*Member == args) || ...);
+  }
+
+  template <typename... Args>
+  constexpr void expect(Args... args) {
+    static_assert((std::is_same_v<Args, Enum> && ...), "Only E enum type allowed");
+    ((length += (has(args)) ? static_cast<size_t>(1) : static_cast<size_t>(0)), ...);
+  }
+
+  template <Enum... args>
+  constexpr void expect() {
+    // static_assert((std::is_same_v<Enum, Enum> && args...), "Only E enum type allowed");
+    ((length += (has<args>()) ? static_cast<size_t>(1) : static_cast<size_t>(0)), ...);
+  }
+
+  const Type& get(Enum e) const {
+    if (enum_to_index(e) < enum_size<Enum>()) {
+      return _data[enum_to_index(e)];
+    } else {
+      return _data[enum_to_index(Enum::None)];
+    }
+  }
+
+  template <typename... Args>
+  bool has(Args... args) {
+    static_assert((std::is_same_v<Args, Enum> && ...), "Only E enum type allowed");
+    return ((get(args).*Member == args) && ...);
+  }
+
+  void set(Type t) {
+    if (enum_to_index<Enum>(t.*Member) < enum_size<Enum>()) {
+      _data[enum_to_index<Enum>(t.*Member)] = t;
+    }
+  }
+
+  inline void clear() {
+    length = 0;
+    std::fill(_data.begin(), _data.end(), Type{});
+  }
+
+  inline size_t len(void) const { return length; }
+  inline size_t len(void) { return length; }
+};
+} // namespace ppt
+

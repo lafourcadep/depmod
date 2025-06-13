@@ -73,13 +73,18 @@ void generate_box_evolution_data(DeformationPath* defpath, py::array_t<double> b
   }
 };
 
-void read_lattice_from_file(py::array_t<double> buf, const std::string& file,
-                            const std::string& fmt, const std::string& compression) {
+void read_lattice_from_file(py::array_t<double> buf, const std::string& file, const std::string& fmt,
+                            const std::string& compression) {
   auto cell = buf.mutable_unchecked<2>();
-  io::Context ctx = io::read_atom_file(file, fmt, compression);
+  io::IOContext ctx{};
+
+  // only read the lattice vector
+  ctx.set<io::IOContext::DOMAIN_ONLY>(true);
+  io::read_atom_file(ctx, file, fmt, compression);
+
   for (size_t i = 0; i < 3; ++i) {
     for (size_t j = 0; j < 3; ++j) {
-      cell(i, j) = ctx.cell[i][j];
+      cell(i, j) = io::matrix_traits::at(ctx.data.cell, i, j);
     }
   }
 }

@@ -55,7 +55,7 @@ GzipFileHandler::GzipFileHandler(const std::string& path, FileMode mode) : TextF
 
   m_fptr = gzopen64(m_path.c_str(), openmode);
   if (m_fptr == nullptr) {
-    PANIC(strf("Unable to open file: ", m_path.c_str()));
+    PANIC("Unable to open file: ", m_path.c_str());
   }
 }
 
@@ -72,7 +72,7 @@ void GzipFileHandler::seek(uint64_t cursor) {
   auto status = gzseek64(m_fptr, static_cast<z_off64_t>(cursor), SEEK_SET);
   if (status == -1) {
     const char* message = gz_error();
-    PANIC(strf("Error while decompressing gzip file : %s", message));
+    PANIC("Error while decompressing gzip file : %s", message);
   }
 }
 
@@ -80,7 +80,7 @@ size_t GzipFileHandler::read(char* buffer, size_t size) {
   int read = gzread(m_fptr, buffer, safe_cast(size));
   const char* error = gz_error();
   if (read == -1 || error != nullptr) {
-    PANIC(strf("Error while reading gzip file : %s", error));
+    PANIC("Error while reading gzip file : %s", error);
   }
   return static_cast<size_t>(read);
 }
@@ -94,7 +94,7 @@ const char* GzipFileHandler::gz_error(void) const {
 unsigned GzipFileHandler::safe_cast(size_t value) {
   constexpr size_t max = std::numeric_limits<unsigned>::max();
   if (value > max) {
-    PANIC(strf("%d is too big for unsigned in call to zlib function", value));
+    PANIC("%d is too big for unsigned in call to zlib function", value);
   }
   return static_cast<unsigned>(value);
 }
@@ -106,7 +106,7 @@ unsigned GzipFileHandler::safe_cast(size_t value) {
 size_t XzFileHandler::safe_cast(size_t size) {
   constexpr size_t max = std::numeric_limits<size_t>::max();
   if (size > max) {
-    PANIC(strf("%ld is too big for unsigned in call to zlib function", size));
+    PANIC("%ld is too big for unsigned in call to zlib function", size);
   }
   return static_cast<size_t>(size);
 }
@@ -120,21 +120,21 @@ void XzFileHandler::check_lzma_ret(lzma_ret ret) {
     return;
   case LZMA_GET_CHECK:
   case LZMA_NO_CHECK:
-    PANIC(strf("lzma: no integrity check.", retnum));
+    PANIC("lzma: no integrity check.", retnum);
   case LZMA_MEM_ERROR:
   case LZMA_MEMLIMIT_ERROR:
-    PANIC(strf("lzma: failed to allocated memory (err: %d)", retnum));
+    PANIC("lzma: failed to allocated memory (err: %d)", retnum);
   case LZMA_FORMAT_ERROR:
-    PANIC(strf("lzma: invalid .xz format (err: %d)", retnum));
+    PANIC("lzma: invalid .xz format (err: %d)", retnum);
   case LZMA_OPTIONS_ERROR:
-    PANIC(strf("lzma: invalid options (err: %d)", retnum));
+    PANIC("lzma: invalid options (err: %d)", retnum);
   case LZMA_DATA_ERROR:
   case LZMA_BUF_ERROR:
-    PANIC(strf("lzma: file is corrupted or truncated (err: %d)", retnum));
+    PANIC("lzma: file is corrupted or truncated (err: %d)", retnum);
   case LZMA_UNSUPPORTED_CHECK:
-    PANIC(strf("lzma: file intergrity check not supported (err: %d)", retnum));
+    PANIC("lzma: file intergrity check not supported (err: %d)", retnum);
   case LZMA_PROG_ERROR:
-    PANIC(strf("lzma: this is bug (err: %d)", retnum));
+    PANIC("lzma: this is bug (err: %d)", retnum);
   }
 }
 
@@ -162,7 +162,7 @@ XzFileHandler::XzFileHandler(const std::string& path, FileMode mode)
   m_fptr = std::fopen(m_path.c_str(), openmode);
   if (m_fptr == nullptr) {
     lzma_end(&m_xz_stream);
-    PANIC(strf("Unable to open file: ", m_path.c_str()));
+    PANIC("Unable to open file: ", m_path.c_str());
   }
 }
 
@@ -234,7 +234,7 @@ size_t XzFileHandler::read(char* buffer, size_t size) {
 unsigned Bzip2FileHandler::safe_cast(uint64_t size) {
   constexpr size_t max = std::numeric_limits<size_t>::max();
   if (size > max) {
-    PANIC(strf("%ld is too big for unsigned in call to bzlib function", size));
+    PANIC("%ld is too big for unsigned in call to bzlib function", size);
   }
   return static_cast<unsigned>(size);
 }
@@ -250,22 +250,22 @@ void Bzip2FileHandler::check_bz2_retcode(int code) {
     return;
   case BZ_SEQUENCE_ERROR:
   case BZ_PARAM_ERROR:
-    PANIC(strf("bzip2: bad call to bzlib (err: %d)", code));
+    PANIC("bzip2: bad call to bzlib (err: %d)", code);
   case BZ_MEM_ERROR:
-    PANIC(strf("bzip2: memory allocation failed (err: %d)", code));
+    PANIC("bzip2: memory allocation failed (err: %d)", code);
   case BZ_DATA_ERROR:
-    PANIC(strf("bzip2: corrupted file (err: %d)", code));
+    PANIC("bzip2: corrupted file (err: %d)", code);
   case BZ_DATA_ERROR_MAGIC:
-    PANIC(strf("bzip2: this file do not seems to be a bz2 file (err: %d)", code));
+    PANIC("bzip2: this file do not seems to be a bz2 file (err: %d)", code);
   // These errors should not occur when using the stream API
   case BZ_CONFIG_ERROR:
-    PANIC(strf("bzip2: mis-compiled bzlib (err: %d)", code));
+    PANIC("bzip2: mis-compiled bzlib (err: %d)", code);
   case BZ_IO_ERROR:
   case BZ_UNEXPECTED_EOF:
   case BZ_OUTBUFF_FULL:
-    PANIC(strf("bzip2: unexpected error from bzlib (err: %d)", code));
+    PANIC("bzip2: unexpected error from bzlib (err: %d)", code);
   default:
-    PANIC(strf("bzip2: ???? (err: %d)", code));
+    PANIC("bzip2: ???? (err: %d)", code);
   }
 }
 
@@ -290,7 +290,7 @@ Bzip2FileHandler::Bzip2FileHandler(const std::string& path, FileMode mode)
   m_fptr = std::fopen(m_path.c_str(), openmode);
   if (m_fptr == nullptr) {
     m_end_bz2_stream(&m_bz2_stream);
-    PANIC(strf("Unable to open file: ", m_path.c_str()));
+    PANIC("Unable to open file: ", m_path.c_str());
   }
 }
 
@@ -469,7 +469,7 @@ std::string_view TextFile::get_line() {
     }
 
     if (remain >= m_buf.size()) {
-      size_t shift = m_lstart - m_buf.data();
+      size_t shift = static_cast<size_t>(m_lstart - m_buf.data());
       m_buf.resize(2 * m_buf.size(), 0);
       m_lstart = m_buf.data() + shift;
       m_bend = m_buf.data() + m_buf.size();
@@ -512,7 +512,7 @@ void TextParser::scan() {
 
   while (!m_file.eof()) {
     if (int64_t c = next(); c > -1) {
-      loc.push_back(c);
+      m_loc.push_back(static_cast<size_t>(c));
     }
     break;
   }
@@ -520,19 +520,19 @@ void TextParser::scan() {
   m_eof = true;
   m_file.clear();
 
-  if (i == 0 && !loc.empty()) {
-    m_file.seek(loc[0]);
+  if (i == 0 && !m_loc.empty()) {
+    m_file.seek(m_loc[0]);
   } else {
     m_file.seek(i);
   }
 }
 
-bool TextParser::operator()(Context& ctx) {
+bool TextParser::operator()(IOContext& ctx) {
   m_file.seek(0);
   return parse(ctx);
 }
 
-bool TextParser::operator()(Context& ctx, size_t index) {
+bool TextParser::operator()(IOContext& ctx, size_t index) {
 
   if (index >= size())
     scan();
@@ -545,7 +545,7 @@ bool TextParser::operator()(Context& ctx, size_t index) {
     return false;
   }
 
-  m_file.seek(static_cast<uint64_t>(loc[index]));
+  m_file.seek(static_cast<uint64_t>(m_loc[index]));
   return parse(ctx);
 }
 
@@ -553,8 +553,8 @@ bool TextParser::operator()(Context& ctx, size_t index) {
 
 ParserFactory::ParserFactory() {
   register_format<lmpdata::LAMMPSDataParser>();
-  // register_format<LAMMPSDumpParser>();
-  // register_format<xyz::ExtendedXYZParser>();
+  register_format<lmpdump::LAMMPSDumpParser>();
+  register_format<xyz::ExtendedXYZParser>();
 };
 
 std::string ParserFactory::infos() const {
@@ -582,8 +582,8 @@ const ParserFactory& parser_factory() {
 
 namespace lmpdata {
 
-// LAMMPS Data only contains one frame
 int64_t LAMMPSDataParser::next() {
+  // LAMMPS Data only contains one frame
   if (size_t cursor = m_file.tell(); cursor == 0) {
     m_file.get_line();
     return static_cast<int64_t>(cursor);
@@ -592,175 +592,402 @@ int64_t LAMMPSDataParser::next() {
   }
 }
 
-
-bool LAMMPSDataParser::parse(Context& ctx) {
-
-  // lout << "Parsing LAMMPS Data file (v2):" << std::endl;
-
-  current_line() = m_file.get_line();
+bool LAMMPSDataParser::parse(IOContext& ctx) {
 
   while (!m_file.eof()) {
+    if (!skipline(current_line())) {
 
-    current_line() = trim_spaces(current_line());
-    if (current_line().empty() || current_line().front() == '#') {
-      current_line() = m_file.get_line();
-      continue;
-    }
-
-    switch (m_current_section) {
-    case Section::HEADER:
-      parse_header(ctx);
-      // we don't care about the rest of the file
-      return true;
-      break;
-    case Section::MASSES:
-      parse_masses();
-      break;
-    case Section::ATOMS:
-      parse_atoms(ctx);
-      break;
-    case Section::IGNORED:
-      forward_to_next_section();
-      break;
-    default:
-      break;
-    }
-
-    current_line() = m_file.get_line();
-  }
-
-  return true;
-}
-
-bool LAMMPSDataParser::parse_header(Context& ctx) {
-
-  std::array<bool, static_cast<size_t>(Field::END)> matched_field = {};
-
-  while (!m_file.eof()) {
-
-    current_line() = trim_spaces(current_line());
-    if (skipline(current_line())) {
-      current_line() = trim_spaces(m_file.get_line());
-      continue;
-    }
-    tokenize(current_line(), m_tokens);
-
-    for (size_t i = 0; i < field_readers().size(); ++i) {
-
-      if (matched_field[i])
-        continue;
-
-      // auto& [field, parser] = m_field_parsers[i];
-      auto& [field, parser] = field_readers()[i];
-
-      if (parser(m_tokens, ctx)) {
-        matched_field[i] = true;
+      switch (m_current_section) {
+      case Section::Header:
+        parse_section_header(ctx);
+        if (ctx.has<IOContext::DOMAIN_ONLY>()) {
+          return true;
+        }
+        break;
+      case Section::Masses:
+        parse_section_masses();
+        break;
+      case Section::Atoms:
+        parse_section_atoms(ctx);
+        break;
+      case Section::Velocities:
+        parse_section_velocities(ctx);
+        break;
+      case Section::Ignored:
+        jumpto_next_section();
+        break;
+      default:
         break;
       }
     }
 
-    // if any section keyword is meet we break from parsing headers
-    // and go to the next section
-    if (matched_field[6]) {
-      m_current_section = get_section(m_tokens[0]);
-      break;
+    if (m_current_section != Section::Ignored) {
+      current_line() = trim_spaces(m_file.get_line());
     }
-    current_line() = m_file.get_line();
   }
   return true;
 }
 
-bool LAMMPSDataParser::parse_atoms(Context&) {
-  m_current_section = Section::IGNORED;
-  return true;
-}
+bool LAMMPSDataParser::parse_section_header(IOContext& ctx) {
 
-bool LAMMPSDataParser::parse_masses() {
-  m_current_section = Section::IGNORED;
-  return true;
-}
+  std::array<bool, enum_size<Keyword>()> matched_keywords{};
 
-bool LAMMPSDataParser::parse_velocities(Context&) {
-  m_current_section = Section::IGNORED;
-  return true;
-}
-
-void LAMMPSDataParser::forward_to_next_section() {
   while (!m_file.eof()) {
 
-    current_line() = trim_spaces(current_line());
-    if (current_line().empty() || current_line().front() == '#') {
-      current_line() = m_file.get_line();
-      continue;
+    if (!skipline(current_line())) {
+
+      tokenize(current_line(), m_tokens);
+
+      for (size_t i = 0; i < enum_size<Keyword>(); ++i) {
+        if (matched_keywords[i]) {
+          continue;
+        }
+
+        if ((*keyword_parsers[i])(m_tokens, ctx)) {
+          matched_keywords[i] = true;
+          break;
+        }
+      }
+
+      // if any section is parsed we break from parsing header
+      if (matched_keywords[enum_to_index(Keyword::Section)]) {
+        break;
+      }
     }
 
-    tokenize(current_line(), m_tokens);
+    current_line() = trim_spaces(m_file.get_line());
+  }
 
-    if (token_match_any(m_tokens[0], tok_sections)) {
-      m_current_section = get_section(m_tokens[0]);
-      section_line() = current_line();
-      break;
+  m_current_section = Section::Ignored;
+  return true;
+}
+
+bool LAMMPSDataParser::parse_section_atoms(IOContext& ctx) {
+
+  size_t index, style;
+  tokenize(section_line(), m_tokens);
+  if (token_set_match_any(m_tokens, NEEDLES_ATOM_STYLE, index, style)) {
+    m_atom_style = enum_from_index<AtomStyle>(style);
+  } else {
+    PANIC("Invalid atom style defined.");
+  }
+
+  size_t particle_count = 0;
+  ctx.data.positions.resize(ctx.data.particle_count);
+  ctx.data.velocities.resize(ctx.data.particle_count);
+  auto& parser =
+      (ctx.has<IOContext::REMAP_ATOM>() ? atom_data_parsers<true>() : atom_data_parsers<false>())[style];
+
+  while (!m_file.eof()) {
+
+    if (!skipline(current_line())) {
+      tokenize(current_line(), m_tokens);
+
+      if (parse_keyword_section(m_tokens, ctx)) {
+        break;
+      }
+
+      bool atom_overflow = cmp::gt(++particle_count, ctx.data.particle_count);
+      if (atom_overflow || !parser(m_tokens, ctx, particle_count)) {
+        if (atom_overflow) {
+          PANIC("Too many atoms expected %ld got %ld", ctx.data.particle_count, particle_count);
+        }
+        PANIC("Error encounterd at line: %s", std::string(current_line()).c_str())
+      }
     }
+    current_line() = trim_spaces(m_file.get_line());
+  }
 
-    current_line() = m_file.get_line();
+  if (particle_count != ctx.data.particle_count) {
+    PANIC("Number of particles is not consitent...");
+  }
+
+  m_current_section = Section::Ignored;
+  return true;
+}
+
+// Currently we ignore the mass section
+bool LAMMPSDataParser::parse_section_masses() {
+  m_current_section = Section::Ignored;
+  return true;
+}
+
+bool LAMMPSDataParser::parse_section_velocities(IOContext& ctx) {
+
+  size_t particle_count = 0;
+  auto parser = ctx.has<IOContext::REMAP_ATOM>() ? parse_atom_velocities<true> : parse_atom_velocities<false>;
+
+  while (!m_file.eof()) {
+
+    if (!skipline(current_line())) {
+      tokenize(current_line(), m_tokens);
+
+      if (parse_keyword_section(m_tokens, ctx)) {
+        break;
+      }
+
+      bool atom_overflow = cmp::gt(++particle_count, ctx.data.particle_count);
+      if (atom_overflow || !parser(m_tokens, ctx, particle_count)) {
+        if (atom_overflow) {
+          PANIC("Too many atoms expected %ld got %ld", ctx.data.particle_count, particle_count);
+        }
+        PANIC("Error encounterd at line: %s", std::string(current_line()).c_str())
+      }
+    }
+    current_line() = trim_spaces(m_file.get_line());
+  }
+
+  if (particle_count != ctx.data.particle_count) {
+    PANIC("Number of particles is not consitent...");
+  }
+
+  m_current_section = Section::Ignored;
+  return true;
+}
+
+void LAMMPSDataParser::jumpto_next_section() {
+  current_line() = trim_spaces(current_line());
+  while (!m_file.eof()) {
+    if (!skipline(current_line())) {
+
+      tokenize(current_line(), m_tokens);
+
+      if (token_match_any(m_tokens[0], NEEDLES_SECTIONS)) {
+        set_current_section(m_tokens[0]);
+        section_line() = current_line(); // keep track of the section for later
+        break;
+      }
+    }
+    current_line() = trim_spaces(m_file.get_line());
   }
 }
 
-bool read_field_natom(const TokenSet& tokens, Context& ctx) {
-  return token_match_any(tokens[1], tok_atoms) && (tokens.size() >= 2) &&
-         tokens_to_num(tokens[0], ctx.n_particles);
+bool parse_keyword_atoms(const TokenSet& tokens, IOContext& ctx) {
+  return tokens.atleast(2) && token_match_any(tokens.at<1>(), NEEDLES_KEYWORD_ATOMS) &&
+         parse_tokens(tokens.at<0>(), ctx.data.particle_count);
 }
 
-bool read_field_atom_types(const TokenSet& tokens, Context& ctx) {
-  if (!token_set_match_seq(tokens, tok_atom_types))
-    return false;
-  return tokens_to_num(tokens[0], ctx.n_species);
+bool parse_keyword_atom_types(const TokenSet& tokens, IOContext& ctx) {
+  return tokens.atleast(3) && token_set_match_seq(tokens, NEEDLES_KEYWORD_ATOM_TYPES) &&
+         parse_tokens(tokens.at<0>(), ctx.data.type_count);
 }
 
-bool read_field_xaxis(const TokenSet& tokens, Context& ctx) {
-  double xlo, xhi;
-  bool ok = token_set_match_seq(tokens, tok_xaxis) && tokens_to_num(tokens[0], xlo, tokens[1], xhi);
-  if (ok) {
-    ctx.cell[0][0] = xhi - xlo;
+template <size_t I, size_t J>
+bool parse_keyword_box_axis(const TokenSet& tokens, IOContext& ctx, const TokenNeedles<2>& needles) {
+  double boxlo, boxhi;
+  if (tokens.atleast(4) && token_set_match_seq(tokens, needles) &&
+      parse_tokens(tokens.at<0>(), boxlo, tokens.at<1>(), boxhi)) {
+    matrix_traits::at<I, J>(ctx.data.cell) = boxhi - boxlo;
+    return true;
   }
-  return ok;
+  return false;
 }
 
-bool read_field_yaxis(const TokenSet& tokens, Context& ctx) {
-  double ylo, yhi;
-  bool ok = token_set_match_seq(tokens, tok_yaxis) && tokens_to_num(tokens[0], ylo, tokens[1], yhi);
-  if (ok) {
-    ctx.cell[1][1] = yhi - ylo;
-  }
-  return ok;
+inline bool parse_keyword_xaxis(const TokenSet& tokens, IOContext& ctx) {
+  return parse_keyword_box_axis<0, 0>(tokens, ctx, NEEDLES_KEYWORD_XAXIS);
 }
 
-bool read_field_zaxis(const TokenSet& tokens, Context& ctx) {
-  double zlo, zhi;
-  bool ok = token_set_match_seq(tokens, tok_zaxis) && tokens_to_num(tokens[0], zlo, tokens[1], zhi);
-  if (ok) {
-    ctx.cell[2][2] = zhi - zlo;
-  }
-  return ok;
+inline bool parse_keyword_yaxis(const TokenSet& tokens, IOContext& ctx) {
+  return parse_keyword_box_axis<1, 1>(tokens, ctx, NEEDLES_KEYWORD_YAXIS);
 }
 
-bool read_field_tilt(const TokenSet& tokens, Context& ctx) {
-  double xy, xz, yz;
-  bool ok = token_set_match_seq(tokens, tok_tilt) && (tokens.size() >= 6) &&
-            tokens_to_num(tokens[0], xy, tokens[1], xz, tokens[2], yz);
-  if (ok) {
-    ctx.cell[0][1] = xy;
-    ctx.cell[0][2] = xz;
-    ctx.cell[1][2] = yz;
-  }
-  return ok;
+inline bool parse_keyword_zaxis(const TokenSet& tokens, IOContext& ctx) {
+  return parse_keyword_box_axis<2, 2>(tokens, ctx, NEEDLES_KEYWORD_ZAXIS);
 }
 
-bool read_field_section(const TokenSet& tokens, Context&) { 
-  return token_set_match_any(tokens, tok_sections);
+bool parse_keyword_tilts(const TokenSet& tokens, IOContext& ctx) {
+  double* xy = &ctx.data.cell.m12;
+  double* xz = &ctx.data.cell.m13;
+  double* yz = &ctx.data.cell.m23;
+  return tokens.atleast(6) && token_set_match_seq(tokens, NEEDLES_KEYWORD_TILTS) &&
+         parse_tokens(tokens.at<0>(), *xy, tokens.at<1>(), *xz, tokens.at<2>(), *yz);
+}
+
+inline bool parse_keyword_section(const TokenSet& tokens, IOContext&) {
+  return tokens.atleast(1) && token_match_any(tokens.at<0>(), NEEDLES_SECTIONS);
 }
 
 } // namespace lmpdata
+
+
+/* ------------------------------------------------------------------------- */
+// Parser for LAMMPS Dump format
+
+namespace lmpdump {
+
+int64_t LAMMPSDumpParser::next() {
+  if (size_t cursor = m_file.tell(); cursor == 0) {
+    m_file.get_line();
+    return static_cast<int64_t>(cursor);
+  } else {
+    return -1;
+  }
+}
+
+bool LAMMPSDumpParser::parse(IOContext& ctx) {
+
+  constexpr StringView label_natom = "ITEM: NUMBER OF ATOMS";
+  constexpr StringView label_box_bounds = "ITEM: BOX BOUNDS";
+  constexpr StringView label_atoms = "ITEM: ATOMS";
+
+  Properties properties;
+
+
+  while (!m_file.eof() && (skipline(current_line()) || !startswith(current_line(), label_natom))) {
+    current_line() = trim_spaces(m_file.get_line());
+  }
+
+
+  current_line() = trim_spaces(m_file.get_line());
+  tokenize(current_line(), m_tokens, 1);
+  if (!parse_tokens(m_tokens.at<0>(), ctx.data.particle_count)) {
+    PANIC("Invalid number of atom: %s", std::string(current_line()).c_str());
+  }
+
+
+  // 'ITEM: BOX BOUNDS' is expected just after NUMBER OF ATOMS
+  current_line() = trim_spaces(m_file.get_line());
+  if (!startswith(current_line(), label_box_bounds)) {
+    PANIC("");
+  }
+
+
+  tokenize(current_line(), m_tokens);
+  properties.triclinic = m_tokens.atleast(7) ? true : false;
+  Mat3d bbox;
+  for (size_t i = 0; i < 3; ++i) {
+    tokenize(trim_spaces(m_file.get_line()), m_tokens);
+    if (!(properties.triclinic
+              ? parse_box_bounds_axis<true>(m_tokens, matrix_traits::row(i, bbox))
+              : parse_box_bounds_axis<false>(m_tokens, matrix_traits::row(i, bbox)))) {
+      PANIC("");
+    }
+  }
+  convert_bbox_to_lattice_vectors(ctx, bbox);
+
+  if (ctx.has<IOContext::DOMAIN_ONLY>()) {
+    return true;
+  }
+
+  // 'ITEM: ATOMS' is expected just after BOX BOUNDS
+  current_line() = trim_spaces(m_file.get_line());
+  if (!startswith(current_line(), label_atoms)) {
+    PANIC("");
+  }
+
+  tokenize(current_line(), m_tokens);
+  (properties.triclinic)
+      ? parse_atom_properties<true>(m_tokens, properties)
+      : parse_atom_properties<false>(m_tokens, properties);
+
+  // parse atom data
+  size_t particle_count = 0;
+  ctx.data.positions.resize(ctx.data.particle_count);
+  ctx.data.velocities.resize(ctx.data.particle_count);
+  auto parser =
+      (ctx.has<IOContext::REMAP_ATOM>() && properties.has<Field::ID>())
+          ? parse_atom_data<true>
+          : parse_atom_data<false>;
+
+  current_line() = trim_spaces(m_file.get_line());
+
+  while (!m_file.eof() && particle_count < ctx.data.particle_count) {
+
+    if (!skipline(current_line())) {
+      tokenize(current_line(), m_tokens);
+
+      bool atom_overflow = cmp::gt(++particle_count, ctx.data.particle_count);
+      if (atom_overflow || !parser(m_tokens, ctx, properties, particle_count)) {
+        if (atom_overflow) {
+          PANIC("Too many atoms expected %ld got %ld", ctx.data.particle_count, particle_count);
+        }
+        PANIC("Error encounterd at line: %s", std::string(current_line()).c_str())
+      }
+    }
+    current_line() = trim_spaces(m_file.get_line());
+  }
+
+  if (particle_count != ctx.data.particle_count) {
+    PANIC("Number of particles is not consitent...");
+  }
+
+  return true;
+}
+
+} // namespace lmpdump
+
+/* ------------------------------------------------------------------------- */
+
+namespace xyz {
+
+int64_t ExtendedXYZParser::next() {
+  if (size_t cursor = m_file.tell(); cursor == 0) {
+    m_file.get_line();
+    return static_cast<int64_t>(cursor);
+  } else {
+    return -1;
+  }
+}
+
+bool ExtendedXYZParser::parse(IOContext& ctx) {
+
+  while (!m_file.eof() && skipline(current_line())) {
+    current_line() = trim_spaces(m_file.get_line());
+  }
+
+  // check if the first non empty line is a valid number
+  tokenize(current_line(), m_tokens);
+  if (!parse_tokens(m_tokens.at<0>(), ctx.data.particle_count)) {
+    PANIC("Invalid atom number: '%s'", std::string(current_line()).c_str());
+  }
+
+  // next line should be the comment line with lattice and properties definitions
+  current_line() = trim_spaces(m_file.get_line());
+
+  if (!parse_xyz_comment_line(current_line(), m_tokens, m_ptokens) ||
+      !(parse_xyz_lattice(m_tokens, ctx) && parse_xyz_properties(m_ptokens, m_properties))) {
+    PANIC("Failed to read the comment line: '%s'", std::string(current_line()).c_str());
+  }
+
+  if (ctx.has<IOContext::DOMAIN_ONLY>()) {
+    return true;
+  }
+
+  // parse atom data
+  ctx.data.positions.resize(ctx.data.particle_count);
+  ctx.data.velocities.resize(ctx.data.particle_count);
+  size_t particle_count = 0;
+
+  auto parser =
+      (ctx.has<IOContext::REMAP_ATOM>() && m_properties.has<Field::ID>())
+          ? parse_xyz_atom_line<true>
+          : parse_xyz_atom_line<false>;
+
+  current_line() = trim_spaces(m_file.get_line());
+
+  while (!m_file.eof() && particle_count < ctx.data.particle_count) {
+
+    if (!skipline(current_line())) {
+      tokenize(current_line(), m_tokens);
+
+      bool atom_overflow = cmp::gt(++particle_count, ctx.data.particle_count);
+      if (atom_overflow || !parser(m_tokens, ctx, m_properties, particle_count)) {
+        if (atom_overflow) {
+          PANIC("Too many atoms expected %ld got %ld", ctx.data.particle_count, particle_count);
+        }
+        PANIC("Error encounterd at line: %s", std::string(current_line()).c_str())
+      }
+    }
+    current_line() = trim_spaces(m_file.get_line());
+  }
+
+  if (particle_count != ctx.data.particle_count) {
+    PANIC("Number of particles is not consitent...");
+  }
+
+  return true;
+}
+} // namespace xyz
 
 /* ------------------------------------------------------------------------- */
 
